@@ -2,7 +2,8 @@
 
 `Swoole`扩展是按照`PHP`标准扩展构建的。使用`phpize`来生成编译检测脚本，`./configure`来做编译配置检测，`make`进行编译，`make install`进行安装。
 
-* **如无特殊需求, 请务必编译安装`Swoole`的最新 [release](https://github.com/swoole/swoole-src/releases/latest) 版本或 [v4.4LTS](https://github.com/swoole/swoole-src/tree/v4.4.x)**
+* **如无特殊需求, 请务必编译安装`Swoole`的最新 [release](https://github.com/swoole/swoole-src/releases/latest) 版本或 [v4.8LTS]
+  (https://github.com/swoole/swoole-src/releases/tag/v4.8.12)**
 * 如果当前用户不是`root`，可能没有`PHP`安装目录的写权限，安装时需要`sudo`或者`su`
 * 如果是在`git`分支上直接`git pull`更新代码，重新编译前务必要执行`make clean`
 * 仅支持 `Linux`(2.3.32 以上内核)、`FreeBSD`、`MacOS` 三种操作系统
@@ -47,7 +48,7 @@ make && sudo make install
 
 ## 进阶完整编译示例
 
-!> 初次接触Swoole的开发者请先尝试上方的简单编译，如果有进一步的需要，可以根据具体的需求和版本，调整以下示例中的编译参数。[编译参数参考](/environment?id=编译选项)
+!> 初次接触Swoole的开发者请先尝试上方的简单编译，如果有进一步地需要，可以根据具体的需求和版本，调整以下示例中的编译参数。[编译参数参考](/environment?id=编译选项)
 
 以下脚本会下载并编译`master`分支的源码, 需保证你已安装所有依赖, 否则会遇到各种依赖错误
 
@@ -61,8 +62,7 @@ mv swoole-src* swoole-src && \
 cd swoole-src && \
 phpize && \
 ./configure \
---enable-openssl \
---enable-http2 && \
+--enable-openssl --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql && \
 make && sudo make install
 ```
 
@@ -147,7 +147,7 @@ cd /etc/php/7.0/fpm/conf.d/ && ln -s ../../mods-available/swoole.ini 20-swoole.i
 
 #### --enable-http2
 
-开启对`HTTP2`的支持
+开启对`HTTP2`的支持，注意Swoole5已经默认开启http2，该选项只在Swoole4.8.x有效。
 
 > 依赖`nghttp2`库。在`v4.3.0`版本后不再需要安装依赖, 改为内置, 但仍需要增加该编译参数来开启`http2`支持
 
@@ -168,6 +168,10 @@ cd /etc/php/7.0/fpm/conf.d/ && ln -s ../../mods-available/swoole.ini 20-swoole.i
 启用对 `c-ares` 的支持
 
 > 依赖`c-ares`库，`v4.7.0`版本可用。如果编译报错`ares.h: No such file or directory`，请查看[安装问题](/question/install?id=libcares)
+
+#### --enable-swoole-pgsql
+
+启用对 PostgreSQL 协程客户端的支持
 
 ### 特殊参数
 
@@ -201,6 +205,10 @@ cd /etc/php/7.0/fpm/conf.d/ && ln -s ../../mods-available/swoole.ini 20-swoole.i
 #### --enable-trace-log
 
 打开追踪日志，开启此选项后swoole将打印各类细节的调试日志，仅内核开发时使用
+
+#### --enable-swoole-coro-time
+
+开启协程耗时计算，启用这个选项后，调用Swoole\Coroutine::getExecuteTime()可以获取当前协程的耗时时间（不包括IO等待）。
 
 ### PHP编译参数
 

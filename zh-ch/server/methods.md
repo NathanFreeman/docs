@@ -5,7 +5,7 @@
 创建一个[异步IO](/learn?id=同步io异步io)的Server对象。
 
 ```php
-Swoole\Server::__construct(string $host = '0.0.0.0', int $port = 0, int $mode = SWOOLE_PROCESS, int $sockType = SWOOLE_SOCK_TCP): \Swoole\Server
+Swoole\Server::__construct(string $host = '0.0.0.0', int $port = 0, int $mode = SWOOLE_BASE, int $sockType = SWOOLE_SOCK_TCP): \Swoole\Server
 ```
 
   * **参数**
@@ -32,8 +32,10 @@ Swoole\Server::__construct(string $host = '0.0.0.0', int $port = 0, int $mode = 
     * `int $mode`
 
       * 功能：指定运行模式
-      * 默认值：[SWOOLE_PROCESS](/learn?id=swoole_process) 多进程模式（默认）
-      * 其它值：[SWOOLE_BASE](/learn?id=swoole_base) 基本模式
+      * 默认值：[SWOOLE_BASE](/learn?id=swoole_base) 基本模式（默认）
+      * 其它值：[SWOOLE_PROCESS](/learn?id=swoole_process) 多进程模式（默认）
+
+      !> 从Swoole5开始，运行模式的默认值修改为SWOOLE_BASE，Swoole4.8依旧还是SWOOLE_PROCESS。
 
     * `int $sockType`
 
@@ -1550,8 +1552,21 @@ Swoole\Server->getLastError(): int
 调用此方法可以得到底层的`socket`句柄，返回的对象为`sockets`资源句柄。
 
 ```php
-Swoole\Server->getSocket()
+Swoole\Server->getSocket(int $port = 0): false|\Socket
 ```
+
+  * **参数**
+
+    * `int $port`
+
+      * 功能：指定监听的端口`port`，0表示获取服务器第一个监听的端口。
+      * 默认值：0
+      * 其它值：无
+
+    * **返回值**
+
+      * 确认成功返回`Socket`对象。
+      * `$port`对应的端口不存在或者不是该服务器监听的端口，返回`false`，确认失败。
 
 !> 此方法需要依赖PHP的`sockets`扩展，并且编译`Swoole`时需要开启`--enable-sockets`选项
 
@@ -1609,7 +1624,7 @@ $server->start();
 设置客户端连接为保护状态，不被心跳线程切断。
 
 ```php
-Swoole\Server->protect(int $fd, bool $value = true)
+Swoole\Server->protect(int $fd, bool $is_protected = true): bool
 ```
 
   * **参数**
@@ -1633,7 +1648,7 @@ Swoole\Server->protect(int $fd, bool $value = true)
 !> Swoole版本 >= `v4.5.0` 可用
 
 ```php
-Swoole\Server->confirm(int $fd)
+Swoole\Server->confirm(int $fd): bool
 ```
 
   * **参数**
@@ -1692,22 +1707,17 @@ Swoole\Server->getWorkerId(): int|false
 
 !> Swoole版本 >= `v4.5.0RC1` 可用
 
+  * **返回值**
+
+    * 返回`Worker`进程id
+    * 不是`Worker`进程或者进程不存在返回`false`
+
 ## getWorkerPid()
 
 获取当前`Worker`进程`PID`
 
 ```php
-Swoole\Server->getWorkerPid(): int|false
-```
-
-!> Swoole版本 >= `v4.5.0RC1` 可用
-
-## getWorkerStatus()
-
-获取`Worker`进程状态
-
-```php
-Swoole\Server->getWorkerStatus(int $worker_id): int|false
+Swoole\Server->getWorkerPid(int $worker_id = -1): int|false
 ```
 
 !> Swoole版本 >= `v4.5.0RC1` 可用
@@ -1717,7 +1727,30 @@ Swoole\Server->getWorkerStatus(int $worker_id): int|false
     * `int $worker_id`
 
       * 功能：`Worker`进程`id`
-      * 默认值：当前`Worker`进程`id`
+      * 默认值：-1，表示获取当前`Worker`进程。
+      * 其它值：无
+
+  * **返回值**
+
+    * 返回`Worker`进程父id
+    * 不是`Worker`进程或者进程不存在返回`false`
+
+## getWorkerStatus()
+
+获取`Worker`进程状态
+
+```php
+Swoole\Server->getWorkerStatus(int $worker_id = -1): int|false
+```
+
+!> Swoole版本 >= `v4.5.0RC1` 可用
+
+  * **参数**
+
+    * `int $worker_id`
+
+      * 功能：`Worker`进程`id`
+      * 默认值：-1，表示获取当前`Worker`进程。
       * 其它值：无
 
   * **返回值**
@@ -1779,9 +1812,9 @@ Swoole\Server->addCommand(string $name, int $accepted_process_types, callable $c
 
     * `callable $callback`
 
-          * 功能：回调函数
-          * 默认值：无
-          * 其它值：无
+      * 功能：回调函数
+      * 默认值：无
+      * 其它值：无
 
 * **返回值**
 
@@ -1793,7 +1826,7 @@ Swoole\Server->addCommand(string $name, int $accepted_process_types, callable $c
 调用`command`
 
 ```php
-Swoole\Server->command(string $name, int $process_id, int $process_type, $data, bool $json_decode = true)
+Swoole\Server->command(string $name, int $process_id, int $process_type, mixed $data, bool $json_decode = true)
 ```
 
 !> Swoole版本 >= `v4.8.0` 可用
@@ -1826,7 +1859,7 @@ Swoole\Server->command(string $name, int $process_id, int $process_type, $data, 
         * 其它值：无
 
     * `bool $json_decode`
-
-          * 功能：是否使用`json_decode`解析
-          * 默认值：无
-          * 其它值：无
+  
+        * 功能：是否使用`json_decode`解析
+        * 默认值：无
+        * 其它值：无

@@ -40,4 +40,4 @@ $serv->start();
 
 调用`$serv->task()`后，程序立即返回，继续向下执行代码。onTask回调函数Task进程池内被异步执行。执行完成后调用`$serv->finish()`返回结果。
 
-!> finish操作是可选的，也可以不返回任何结果
+!> finish操作是可选的，也可以不返回任何结果，如果在onTask时间中直接使用return返回，相当于隐式执行finish操作。
