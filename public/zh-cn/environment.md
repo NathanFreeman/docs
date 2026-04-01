@@ -1,328 +1,226 @@
-# 安装Swoole
+### 安装Swoole
 
-`Swoole`扩展是按照`PHP`标准扩展构建的。使用`phpize`来生成编译检测脚本，`./configure`来做编译配置检测，`make`进行编译，`make install`进行安装。
+本文档以 **Ubuntu 22.04** 为例，介绍 Swoole 的完整安装流程。不同 PHP 版本与 Swoole 版本的对应关系如下：
+- Swoole `6.0` 需要 PHP `8.0` 或更高版本。
+- Swoole `6.1` 需要 PHP `8.1` 或更高版本。
+- Swoole `6.2` 需要 PHP `8.2` 或更高版本。
 
-* 如无特殊需求, 请务必编译安装`Swoole`的最新 [Swoole](https://github.com/swoole/swoole-src/releases/) 版本。
-* 如果当前用户不是`root`，可能没有`PHP`安装目录的写权限，安装时需要`sudo`或者`su`。
-* 如果是在`git`分支上直接`git pull`更新代码，重新编译前务必要执行`make clean`。
-* 仅支持 `Linux`(2.3.32 以上内核)、`FreeBSD`、`MacOS` 三种操作系统。
-* 低版本Linux系统（如`CentOS 6`）可以使用`RedHat`提供的`devtools`编译，[参考文档](https://blog.csdn.net/ppdouble/article/details/52894271)  。
-* 在`Windows`平台，可使用`WSL(Windows Subsystem for Linux)`或`CygWin`。
-* 部分扩展与`Swoole`扩展不兼容，参考[扩展冲突](/getting_started/extension)。
+#### 1. 安装 PHP
 
-## 安装准备
-
-安装前必须保证系统已经安装了下列软件
-
-- `4.8`版本需要 `PHP-7.2` 或更高版本
-- `5.0`版本需要 `PHP-8.0` 或更高版本
-- `6.0`版本需要 `PHP-8.1` 或更高版本
-- `gcc-4.8` 或更高版本
-- `make`
-- `autoconf`
-
-## 快速安装
-
-> 1.下载swoole源码
-
-* [https://github.com/swoole/swoole-src/releases](https://github.com/swoole/swoole-src/releases)
-* [https://pecl.php.net/package/swoole](https://pecl.php.net/package/swoole)
-* [https://gitee.com/swoole/swoole/tags](https://gitee.com/swoole/swoole/tags)
-
-> 2.从源码编译安装
-
-下载源代码包后，在终端进入源码目录，执行下面的命令进行编译和安装
-
-!> ubuntu 没有安装phpize可执行命令：`sudo apt-get install php-dev`来安装phpize
-
+首先，安装所需的 PHP 版本及其开发包：
 ```shell
-cd swoole-src && \
-phpize && \
-./configure && \
-sudo make && sudo make install
+apt update -yqq
+apt install -yqq software-properties-common
+LC_ALL=C.UTF-8 add-apt-repository ppa:ondrej/php
+apt update -yqq
+# 在本文档修订的时候，PHP 8.4仍是主流版本。
+apt install php8.4-cli php8.4-dev
 ```
 
-> 3.启用扩展
+#### 2. 安装依赖（可选）
 
-编译安装到系统成功后, 需要在`php.ini`中加入一行`extension=swoole.so`来启用Swoole扩展
+Swoole 的部分功能需要额外的系统库支持。可根据实际需求，安装相应的依赖。
 
-## 进阶完整编译示例
+| 分类 | 软件包名称 | 作用说明 | 是否必需 |
+|------|-----------|---------|---------|
+| **编译工具** | `cmake` | CMake 构建工具，生成 Makefile | ✅ 必需 |
+| | `make` | Make 构建工具，执行编译任务 | ✅ 必需 |
+| | `gcc` | GNU C 编译器，编译 C/C++ 代码 | ✅ 必需 |
+| **加密支持** | `libssl-dev` | OpenSSL 开发库，提供 HTTPS、加密等功能 | ✅ 必需 |
+| **数据库协程化** | `libmariadb-dev` `unixodbc-dev` `libaio-dev` `libaio1` | 支持 `pdo_odbc` 协程化 | ⚠️ 按需 |
+| | `libpq-dev` | 支持 `pdo_pgsql` 协程化 | ⚠️ 按需 |
+| | `sqlite3` `libsqlite3-dev` | 支持 `pdo_sqlite` 协程化 | ⚠️ 按需 |
+| | `oracle-sdk-client` | 支持 `pdo_oci` 协程化 | ⚠️ 按需 |
+| **高性能 I/O** | `liburing-dev` | Linux `io_uring` 用户态库，支持**文件异步 I/O** 和 **Socket 网络 I/O** 的高性能操作 | ⚠️ 按需 |
+| **压缩算法** | `libzstd-dev` | Zstandard 压缩库，高性能压缩 | ⚠️ 按需 |
+| | `zlib1g-dev` | zlib 压缩库，支持 gzip 格式 | ⚠️ 按需 |
+| | `libbrotli-dev` | Brotli 压缩库，常用于网页压缩 | ✅ 必需 |
+| **网络支持** | `libc-ares-dev` | 异步 DNS 解析库 | ⚠️ 按需 |
+| | `libcurl4-openssl-dev` | PHP curl 扩展协程化支持<br>（需与 `PHP curl` 使用的 `libcurl` 版本一致，可通过 `php --ri curl` 查看） | ⚠️ 按需 |
 
-!> 初次接触Swoole的开发者请先尝试上方的简单编译，如果有进一步的需要，可以根据具体的需求和版本，调整以下示例中的编译参数。[编译参数参考](/environment?id=编译选项)
-
-以下脚本会下载并编译`master`分支的源码, 需保证你已安装所有依赖, 否则会遇到各种依赖错误。
 
 ```shell
-mkdir -p ~/build && \
-cd ~/build && \
-rm -rf ./swoole-src && \
-curl -o ./tmp/swoole.tar.gz https://github.com/swoole/swoole-src/archive/master.tar.gz -L && \
-tar zxvf ./tmp/swoole.tar.gz && \
-mv swoole-src* swoole-src && \
-cd swoole-src && \
-phpize && \
-./configure \
---enable-openssl --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql && \
-sudo make && sudo make install
+# 有些Linux系统发行版可能没有libaio1或者已经装好了libaio1，安装前需要检查一下
+sudo apt update
+sudo apt install -y cmake make gcc libssl-dev libmariadb-dev unixodbc-dev libaio-dev libaio1 sqlite3 libsqlite3-dev libzstd-dev zlib1g-dev libbrotli-dev libc-ares-dev libpq-dev libcurl4-openssl-dev
 ```
 
-## PECL
+```shell
+# 示例：安装 Oracle Instant Client（用于支持 pdo_oci 协程化）
+# 以下命令可以写入shell脚本中，直接执行shell脚本
+#!/bin/sh -e
+if [ "$(uname -m)" = "aarch64" ]; then
+  arch="arm64"
+else
+  arch="x64"
+fi
 
-> 注意: PECL发布时间晚于GitHub发布时间
+wget -nv -O instantclient-basiclite-linux${arch}.zip https://download.oracle.com/otn_software/linux/instantclient/1930000/instantclient-basiclite-linux.${arch}-19.30.0.0.0dbru.zip
+unzip instantclient-basiclite-linux${arch}.zip && rm instantclient-basiclite-linux${arch}.zip
+wget -nv -O instantclient-sdk-linux${arch}.zip https://download.oracle.com/otn_software/linux/instantclient/1930000/instantclient-sdk-linux.${arch}-19.30.0.0.0dbru.zip
+unzip instantclient-sdk-linux${arch}.zip && rm instantclient-sdk-linux${arch}.zip
+mv instantclient_*_* ./instantclient
+rm ./instantclient/sdk/include/ldap.h
+echo DISABLE_INTERRUPT=on > ./instantclient/network/admin/sqlnet.ora
+mv ./instantclient /usr/local/
+echo '/usr/local/instantclient' > /etc/ld.so.conf.d/oracle-instantclient.conf
+ldconfig
+```
 
-Swoole 项目已收录到 PHP 官方扩展库，除了手动下载编译外，还可以通过 PHP 官方提供的`pecl`命令，一键下载安装
+```shell
+# 安装 liburing（Swoole 6.0 需 2.6+，Swoole 6.2 需 2.8+）
+wget https://github.com/axboe/liburing/archive/refs/tags/liburing-2.6.tar.gz
+tar zxf liburing-2.6.tar.gz
+cd liburing-liburing-2.6 && ./configure && make -j$(nproc) && make install
+```
 
+#### 3. 安装 Swoole 扩展
+
+可通过以下任一方式安装 Swoole。
+
+**方式一：使用 PECL 安装（推荐）**
 ```shell
 pecl install swoole
 ```
-
-通过 PECL 安装 Swoole 时，在安装过程中它会询问是否要启用某些功能，这也可以在运行安装之前提供，例如：
-
+如需在安装时预先配置功能选项，可使用 `-D` 或 `--configureoptions` 参数：
 ```shell
-pecl install -D 'enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="no" enable-swoole-curl="yes" enable-cares="yes"' swoole
-
-#或者
-pecl install --configureoptions 'enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="no" enable-swoole-curl="yes" enable-cares="yes"' swoole
+# 示例：启用 openssl 和 mysqlnd，禁用 sockets
+pecl install -D 'enable-sockets="no" enable-openssl="yes" enable-mysqlnd="yes" enable-swoole-curl="yes" enable-cares="yes"' swoole
 ```
 
-## PIE
-
-Swoole 项目支持由 PHP 全新的扩展安装工具 PIE 一键下载安装。
-
-```shell
-pie install swoole/swoole:5.1.5
-```
-
-通过 PIE 安装 Swoole 时，在安装过程中它会询问是否要启用某些功能，这也可以在运行安装之前提供，例如：
+**方式二：使用 PIE 安装**
+[PIE下载地址](https://github.com/php/pie/releases)
 
 ```shell
-pie install swoole/swoole:5.1.5 --enable-socket --enable-swoole-curl
+pie install swoole/swoole:6.2.0
+```
+也可在安装前指定功能选项：
+```shell
+pie install swoole/swoole:6.2.0 --enable-socket --enable-swoole-curl
 ```
 
-## 添加Swoole到php.ini
+**方式三：从源码编译安装**
+1. 下载源码包：
+- [GitHub Releases](https://github.com/swoole/swoole-src/releases)
+- [PECL](https://pecl.php.net/package/swoole)
+- [Gitee](https://gitee.com/swoole/swoole/tags)
 
-最后，编译安装成功后，修改`php.ini`加入
+2. 进入目录并编译安装：
+    ```shell
+    cd swoole-src
+    phpize
+    ./configure --enable-swoole-curl --enable-iouring
+    sudo make && sudo make install
+    ```
+
+
+#### 4. 启用扩展
+
+1. 找到 `php.ini` 文件位置：`php --ini | grep "Loaded Configuration File"`
+2. 在该文件中添加一行：`extension=swoole.so`
+3. 验证安装是否成功：`php -m | grep swoole`。若无输出，请检查 `php.ini` 路径是否正确。
+
+### swoole-cli
+
+如果对在服务器上同时编译 `PHP` 和 `Swoole` 感到繁琐，推荐使用 `swoole-cli` 二进制编译产物。
+
+- 开箱即用： swoole-cli 是一个增强版的独立 PHP 可执行程序，集成了 PHP 内核、Swoole 扩展及常用功能，无需额外编译即可直接运行。
+- 极速部署： 省去复杂的编译步骤，通过二进制方式实现快速部署。
+- 下载链接：[swoole-cli](https://www.swoole.com/download)
+
+```shell
+tar xf swoole-cli-v6.2.0-linux-x64.tar.xz
+chmod +x ./swoole-cli
+./swoole-cli -v
+```
+
+### 编译选项详解
+
+PECL/PIE 或源码安装执行 `./configure` 时，可添加以下参数以开启特定功能。
+
+#### 通用功能选项
+
+| 参数                         | 说明                                              | 备注                                                                                        |
+|:---------------------------|:------------------------------------------------|:------------------------------------------------------------------------------------------|
+| `--enable-openssl`         | 启用 SSL/TLS 支持。                                  | Swoole 6.2 版本后该选项已被废弃，默认启用 SSL/TLS 支持。                                                    |
+| `--with-openssl-dir`       | 指定 OpenSSL 库路径。                                 | Swoole 6.2 版本后仅用于修改默认路径。                                                                  |
+| `--enable-http2`           | 开启 HTTP2 协议支持。                                  | Swoole 5 起默认启用。                                                                           |
+| `--enable-swoole-json`     | 启用 `swoole_substr_json_decode` 函数。              | Swoole 5 起默认启用。                                                                           |
+| `--enable-swoole-curl`     | 启用对原生 `curl` 的协程化支持（`SWOOLE_HOOK_NATIVE_CURL`）。 | 要求 PHP 与 Swoole 使用相同的 `libcurl`和安装`php curl`扩展。                                           |
+| `--enable-cares`           | 启用 `c-ares` 异步 DNS 解析支持。                        | 依赖 `c-ares` 库。                                                                            |
+| `--enable-brotli`          | 启用 Brotli 压缩算法支持。                               | 依赖`libbrotli`库。                                                                           |
+| `--with-brotli-dir`        | 指定 Brotli 库路径。                                  | 依赖`libbrotli`库。                                                                           |
+| `--enable-swoole-pgsql`    | 启用 PostgreSQL 数据库的协程化支持。                        | 依赖 `libpq` 库。                                                                             |
+| `--with-swoole-odbc`       | 启用 `pdo_odbc` 的协程化支持。                           | 依赖 `unixodbc-dev`。示例：`--with-swoole-odbc="unixODBC,/usr"`                                 |
+| `--with-swoole-oracle`     | 启用 `pdo_oci` 的协程化支持，用于 Oracle 数据库。              | 依赖 `oracle-client-sdk` 库。示例：`--with-swoole-oracle=instantclient,/usr/local/instantclient` |
+| `--enable-swoole-sqlite`   | 启用 `pdo_sqlite` 的协程化支持。                         | 依赖`sqlite3` `libsqlite3-dev`库。                                                            |
+| `--enable-swoole-thread`   | 开启多线程模式，将进程模型变为单进程多线程。                          | 要求 PHP 为 ZTS 版本，Swoole 6.0+。                                                              |
+| `--enable-iouring`         | 使用 `io_uring` 替代线程池处理文件异步 I/O。                  | 需高版本 Linux 内核及 `liburing` 库，Swoole 6.0+。                                                  |
+| `--enable-iouring-dir`     | 指定 `liburing` 库路径。                              | 需高版本 Linux 内核及 `liburing` 库，Swoole 6.0+。                                                  |
+| `--enable-uring-socket`    | 使用 `io_uring` 替代 `epoll/kqueue` 处理 Socket I/O。  | 依赖 `--enable-iouring`，Swoole 6.2+。                                                        |
+| `--enable-zstd`            | 启用 Zstandard 压缩算法支持。                            | 依赖 `libzstd` 库，Swoole 6.0+。                                                               |
+| `--with-swoole-ssh2`       | 启用 ssh2 的协程化支持。                                 | Swoole 6.2+ 可用。                                                                           |
+| `--enable-swoole-ftp`      | 启用 ftp 的协程化支持。                            | Swoole 6.2+ 可用。                                                                           |
+
+#### 特殊与调试选项
+
+| 参数 | 说明 | 备注 |
+| :--- | :--- | :--- |
+| `--enable-mysqlnd` | 启用 `mysqlnd` 支持，用于 `Coroutine\MySQL::escape` 方法。 | 需 PHP 已安装 `mysqlnd` 扩展。 |
+| `--enable-sockets` | 允许将 PHP `sockets` 扩展创建的资源添加到 Swoole 的事件循环中。 | |
+| `--enable-debug` | 开启调试模式，用于 `gdb` 跟踪。 | **生产环境禁用** |
+| `--enable-debug-log` | 开启内核 DEBUG 日志。 | **生产环境禁用**，Swoole 4.2+。 |
+| `--enable-trace-log` | 开启追踪日志，打印详细调试信息。 | **仅供内核开发使用** |
+| `--enable-swoole-coro-time` | 启用协程运行时间计算。 | |
+
+
+这段内容主要介绍了 Swoole 在特殊硬件平台（ARM/MIPS）、Windows 子系统（WSL）以及容器化环境（Docker）下的编译与配置注意事项。
+
+针对你提供的 Markdown 内容，我进行了结构化优化，使其层级更清晰，重点更突出，并修复了链接格式。
+
+以下是优化后的版本：
+
+### 特殊平台与环境编译指南
+
+#### 1. 嵌入式/特定架构平台
+针对 ARM 和 MIPS 等平台，推荐使用 GCC 进行交叉编译。
+
+| 平台 | 适用设备 | 编译注意事项 |
+| :--- | :--- | :--- |
+| **ARM** | 树莓派等 | 编译 Swoole 时，建议手动修改 `Makefile`，**移除 `-O2` 优化参数**。 |
+| **MIPS** | OpenWrt 路由器等 | 直接使用 GCC 进行交叉编译。 |
+
+#### 2. Windows 平台 (WSL)
+推荐使用 **Windows Subsystem for Linux (WSL)** ，安装方式与原生 Linux 环境一致，但需注意以下配置差异：
+
+*   **必须关闭 `daemonize` 选项** 。
+*   **内核兼容性**：
+  *   若 WSL 版本低于 `17101`，在执行`./configure`后，需手动修改 `config.h` 文件，关闭 `HAVE_SIGNALFD` 宏定义。
+
+#### 3. Docker 官方镜像
+官方提供了完善的 Docker 镜像支持，相关资源如下：
+
+*   **GitHub 仓库**：[swoole/docker-swoole](https://github.com/swoole/docker-swoole)
+*   **Docker Hub**：[phpswoole/swoole](https://hub.docker.com/r/phpswoole/swoole)
+
+### 扩展冲突
+
+由于某些用于跟踪调试的 PHP 扩展大量使用了全局变量，可能会引发 Swoole 协程的崩溃问题。建议关闭以下相关扩展：
+
+- phptrace
+- aop
+- molten
+- xhprof
+- phalcon（Swoole 协程无法在 phalcon 框架中运行）
+
+自 Swoole `5.1` 版本起，可直接使用 `xdebug` 扩展对 Swoole 程序进行调试。可通过命令行参数或修改 `php.ini` 配置启用：
 
 ```ini
-extension=swoole.so
+swoole.enable_fiber_mock=On
 ```
 
-通过`php -m`来查看是否成功加载了`swoole.so`，如果没有可能是`php.ini`的路径不对。  
-可以使用`php --ini`来定位到`php.ini`的绝对路径，`Loaded Configuration File`一项显示的是加载的php.ini文件，如果值为`none`证明根本没加载任何`php.ini`文件，需要自己创建。
-
-!> 对`PHP`版本支持和`PHP`官方维护版本保持一致，参考[PHP版本支持时间表](http://php.net/supported-versions.php)
-
-## 其他平台编译
-
-ARM平台（树莓派Raspberry PI）
-
-* 使用 `GCC` 交叉编译
-* 在编译 `Swoole` 时，需要手动修改 `Makefile` 去掉 `-O2` 编译参数
-
-MIPS平台（OpenWrt路由器）
-
-* 使用 GCC 交叉编译
-
-Windows WSL
-
-`Windows 10` 系统增加了 `Linux` 子系统支持，`BashOnWindows` 环境下也可以使用 `Swoole`。安装命令
+或通过命令行启动：
 
 ```shell
-apt-get install php7.0 php7.0-curl php7.0-gd php7.0-gmp php7.0-json php7.0-mysql php7.0-opcache php7.0-readline php7.0-sqlite3 php7.0-tidy php7.0-xml  php7.0-bcmath php7.0-bz2 php7.0-intl php7.0-mbstring  php7.0-mcrypt php7.0-soap php7.0-xsl  php7.0-zip
-pecl install swoole
-echo 'extension=swoole.so' >> /etc/php/7.0/mods-available/swoole.ini
-cd /etc/php/7.0/cli/conf.d/ && ln -s ../../mods-available/swoole.ini 20-swoole.ini
-cd /etc/php/7.0/fpm/conf.d/ && ln -s ../../mods-available/swoole.ini 20-swoole.ini
+php -d swoole.enable_fiber_mock=On your_file.php
 ```
-
-!> `WSL` 环境下必须关闭 `daemonize` 选项  
-低于`17101`的`WSL`，源码安装`configure`后需要修改 `config.h` 关闭 `HAVE_SIGNALFD`
-
-## Docker官方镜像
-
-- GitHub: [https://github.com/swoole/docker-swoole](https://github.com/swoole/docker-swoole)  
-- dockerhub: [https://hub.docker.com/r/phpswoole/swoole](https://hub.docker.com/r/phpswoole/swoole)
-
-## 编译选项
-
-这里是`./configure`编译配置的额外参数，用于开启某些特性
-
-### 通用参数
-
-#### --enable-openssl
-
-启用`SSL`支持，此参数将在`6.2`版本后移除，变更为必选项，`SSL/TLS`将总是可用的。
-
-> 使用操作系统提供的`libssl.so`动态连接库
-
-#### --with-openssl-dir
-
-启用`SSL`支持并指定`openssl`库的路径, 需跟上路径参数，如: `--with-openssl-dir=/opt/openssl/`。
-此参数在`6.2`版本后依然有效，但仅用于修改默认的`openssl`库路径，若未设置则使用系统默认的`openssl`库。
-
-#### --enable-http2
-
-开启对`HTTP2`的支持
-
-> 依赖`nghttp2`库。在`V4.3.0`版本后不再需要安装依赖, 改为内置, 但仍需要增加该编译参数来开启`http2`支持，`Swoole5`默认启用该参数。
-
-#### --enable-swoole-json
-
-启用对[swoole_substr_json_decode](/functions?id=swoole_substr_json_decode)的支持，`Swoole5`开始默认启用该参数
-
-> 依赖`json`扩展，`v4.5.7`版本可用
-
-#### --enable-swoole-curl
-
-启用对[SWOOLE_HOOK_NATIVE_CURL](/runtime?id=swoole_hook_native_curl)的支持，开启这个需要确保`php`和`Swoole`使用相同的`libcurl`的共享库和头文件，否则会出现一些无法预知的问题。
-
-> `v4.6.0`版本可用。如果编译报错`curl/curl.h: No such file or directory`，请查看[安装问题](/question/install?id=libcurl)
-
-#### --enable-cares
-
-启用对 `c-ares` 的支持
-
-> 依赖`c-ares`库，`v4.7.0`版本可用。如果编译报错`ares.h: No such file or directory`，请查看[安装问题](/question/install?id=libcares)
-
-#### --with-jemalloc-dir
-
-启用对 `jemalloc` 的支持
-
-#### --enable-brotli
-
-启用对 `libbrotli` 压缩支持
-
-#### --with-brotli-dir
-
-启用`libbrotli`压缩支持并指定`libbrotli`库的路径, 需跟上路径参数，如: `--with-brotli-dir=/opt/brotli/`
-
-#### --enable-swoole-pgsql
-
-启用`PostgreSQL`数据库协程化。
-
-> `Swoole5.0`之前是使用协程客户端进行对`PostgreSQL`进行协程化，`Swoole5.1`之后，除了使用协程客户端进行协程化，也能够使用原生的`pdo_pgsql`协程化`PostgreSQL`了。
-
-#### --with-swoole-odbc
-
-启动对`pdo_odbc`协程化，该参数启用之后，所有支持`odbc`接口的数据库都能够协程化了。
-
-
->`v5.1.0`版本后可用,需依赖`unixodbc-dev`库
-
-示例配置
-
-```
-with-swoole-odbc="unixODBC,/usr"
-```
-
-#### --with-swoole-oracle
-
-启用对`pdo_oci`的协程化，该参数启用之后，`oracle`数据库的增删改查都会触发协程操作。
-
->`v5.1.0`版本后可用
-
-#### --enable-swoole-sqlite
-
-启用对`pdo_sqlite`的协程化，该参数启用之后，`sqlite`数据库的增删改查都会触发协程操作。
-
->`v5.1.0`版本后可用
-
-#### --enable-swoole-thread
-
-开启`swoole`多线程模式，添加这个编译选项后，`Swoole`将会由多进程单线程模型变成单进程多线程模型。
-
->`v6.0`版本后可用，且`PHP`必须是`ZTS`模式
-
-#### --enable-iouring
-
-添加这个编译选项后，`swoole`的文件异步处理将会由线程池模拟实现变成`iouring`。
-`iouring`是`Linux`系统独有的特性，可大幅提升文件系统`IO`性能。但需要高版本内核，使用前请检查当前`Linux`内核版本是否支持`iouring`。
-
-> `v6.0`版本后可用，而且需要安装`liburing`依赖来支持此特性，如果磁盘性能够好的情况下两种模式性能相差不大，只有`I/O`压力较大的情况下，`iouring`模式性能会优于异步线程模式。
-
-在`docker`容器中使用`iouring`时，出现`Create io_uring failed, the error code is 38`错误。请尝试下面的解决方法：
-
-1. 将`docker`容器的内核版本升级到`5.1.0`以上
-2. 使用`--privileged`参数来运行容器
-3. 运行时增加`--security-opt seccomp:unconfined`参数，允许`docker`容器使用`io_uring`特性
-
-#### --enable-uring-socket
-开启后将使用`io_uring`代替`epoll/kqueue`来处理`socket`，并发性能将得到大幅提升。影响所有`Swoole\Coroutine\Socket`的实现。
-
-包括：
-- `Swoole\Coroutine\Socket`
-- `Swoole\Coroutine\Client`
-- `Swoole\Coroutine\Server`
-- `Swoole\Coroutine\Http\Client`
-- `Swoole\Coroutine\Http\Server`
-- `Swoole\Coroutine\Http2\Client`
-- `PHP Stream Runtime Hook`，包括`pdo-mysql`、`mysqli`、`redis`扩展
-
-以上模块均使用`uring-socket`，并发性能将得到大幅提升。
-
-对异步服务器模块，如`Swoole\Server`、`Swoole\Http\Server`、`Swoole\WebSocket\Server`，`Event`、`Timer`，以及`curl`、`pdo_pgsql`等无效，
-将依然使用`epoll/kqueue`实现。
-
-> `v6.2`版本后可用，此选项依赖`liburing`库，仅在开启`--enable-iouring`时有效
-
-#### --enable-zstd
-
-添加这个编译选项后，`http`服务端和客户端之间可以使用高性能压缩工具`Zstd`压缩响应。
-
->`v6.0`版本后可用，而且需要安装`libzstd`依赖来支持此特性。
-
-### 特殊参数
-
-!> **如无历史原因不建议启用**
-
-#### --enable-mysqlnd
-
-启用`mysqlnd`支持，启用`Coroutine\MySQL::escapse`方法。启用此参数后，`PHP`必须有`mysqlnd`模块，否则会导致`Swoole`无法运行。
-
-> 依赖`mysqlnd`扩展
-
-#### --enable-sockets
-
-增加对PHP的`sockets`资源的支持。开启此参数，[Swoole\Event::add](/event?id=add)就可以添加`sockets`扩展创建的连接到`Swoole`的[事件循环](/learn?id=什么是eventloop)中。  
-`Server`和`Client`的 [getSocket()](/server/methods?id=getsocket)方法也需要依赖此编译参数。
-
-> 依赖`sockets`扩展, `v4.3.2`版本后该参数的作用被削弱了, 因为Swoole内置的[Coroutine\Socket](/coroutine_client/socket)可以完成大部分事情
-
-### Debug参数
-
-!> **生产环境不可以启用**
-
-#### --enable-debug
-
-打开调试模式。使用`gdb`跟踪需要在编译`Swoole`时增加此参数。
-
-#### --enable-debug-log
-
-打开内核DEBUG日志。**（Swoole版本 >= 4.2.0）**
-
-#### --enable-trace-log
-
-打开追踪日志，开启此选项后swoole将打印各类细节的调试日志，仅内核开发时使用
-
-#### --enable-swoole-coro-time
-
-启用对协程运行时间计算，此选项开启后，可以使用Swoole\Coroutine::getExecuteTime()计算协程执行时间，不包括I\O等待时间。
-
-### PHP编译参数
-
-#### --enable-swoole
-
-静态编译 Swoole 扩展到 PHP 中，根据下面的操作，就能出现`--enable-swoole`这个选项。
-
-```shell
-cp -r /home/swoole-src /home/php-src/ext
-cd /home/php-src
-./buildconf --force
-./configure --help | grep swoole
-```
-
-!> 此选项是在编译 PHP 而不是 Swoole 时使用的
-
-## 常见问题
-
-* [Swoole安装常见问题](/question/install)

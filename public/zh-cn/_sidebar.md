@@ -1,26 +1,15 @@
 
-* 安装
-  * [安装Swoole](environment.md)
-  * [扩展冲突](getting_started/extension.md)
-
-* [简单示例](start/start_server.md)
-  * [TCP服务器](start/start_tcp_server.md)
-  * [UDP服务器](start/start_udp_server.md)
-  * [HTTP服务器](start/start_http_server.md)
-  * [WebSocket服务器](start/start_ws_server.md)
-  * [MQTT(物联网)服务器](start/start_mqtt.md)
-  * [执行异步任务(Task)](start/start_task.md)
-  * [协程初探](start/coroutine.md)
+* [安装](environment.md)
 
 * [服务端(异步风格)](server/init.md)
   * [TCP/UDP服务器](server/tcp_init.md)
-    * [方法](server/methods.md)
-    * [属性](server/properties.md)
-    * [配置](server/setting.md)
-    * [回调事件](server/events.md)
-  * [HTTP服务器](http_server.md)
+  * [HTTP/HTTPS/HTTP2服务器](http_server.md)
   * [WebSocket服务器](websocket_server.md)
   * [Redis服务器](redis_server.md)
+  * [方法](server/methods.md)
+  * [属性](server/properties.md)
+  * [配置](server/setting.md)
+  * [回调事件](server/events.md)
   * [多端口监听](server/port.md)
 
 * [服务端(协程风格)](server/co_init.md)
