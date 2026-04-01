@@ -2,6 +2,8 @@
 
 - `Swoole\Http\Server`、`Swoole\Websocket\Server` 以及 `Swoole\Redis\Server` 均继承自 `Swoole\Server` 类。因此，这些子类不仅共享以下属性，同时也完全继承了父类的所有公共方法（如 `set`、`close` 等）。
 
+!> 以下所有属性本质上是只读快照。修改属性值不会影响服务的运行状态。例如，服务启动后修改其中的进程数配置，并不会实际增加或减少进程。
+
 ### setting
 
 - 通过 [Swoole\Server->set()](/server/methods?id=set) 方法配置的所有参数，最终都会被保存在 `Swoole\Server->$setting` 属性中。该属性是一个数组（`array`），允许开发者在回调函数中随时访问和读取当前的运行时配置。
@@ -19,8 +21,6 @@ $server->on('receive', function(Server $server, int $fd, int $reactorId, string 
 
 $server->start();
 ```
-
-!> `setting` 属性本质上是配置的只读快照。修改该数组的值不会影响服务的运行状态。例如，服务启动后修改其中的进程数配置，并不会实际增加或减少进程。
 
 ### connections
 
@@ -177,10 +177,13 @@ $server->on('request', function(Request $request, Response $response) use ($serv
 $server->start();
 ```
 
-!> 该属性返回会返回下列的值的其中一个
-- `SWOOLE_BASE` 单进程模式
-- `SWOOLE_PROCESS` 多进程模式
-- `SWOOLE_THREAD` 多线程模式
+> 该属性返回以下值之一：
+>
+> - `SWOOLE_BASE` — 单进程模式
+> - `SWOOLE_PROCESS` — 多进程模式
+> - `SWOOLE_THREAD` — 多线程模式
+
+
 
 ### ports
 
