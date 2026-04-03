@@ -1,176 +1,260 @@
 # 多端口监听
 
-`Swoole\Server`可以监听多个端口，每个端口都可以设置不同的协议处理方式，例如80端口处理HTTP协议，9507端口处理TCP协议。`SSL/TLS`传输加密也可以只对特定的端口启用。
-
-!> 例如主服务器是WebSocket或HTTP协议，新监听的TCP端口（[listen](/server/methods?id=listen)的返回值，即[Swoole\Server\Port](server/server_port.md)对象，以下简称port）默认会继承主Server的协议设置，必须单独调用`port`对象的`set`方法和`on`方法设置新的协议才会启用新协议。 
+`Swoole`支持单服务多端口监听，每个端口可独立配置协议（如 HTTP、TCP、WebSocket）与 SSL/TLS 加密，实现协议隔离与安全通信，无需启动多个服务进程。
 
 ## 监听新端口
 
-```php
-//返回port对象
-$port1 = $server->listen("127.0.0.1", 9501, SWOOLE_SOCK_TCP);
-$port2 = $server->listen("127.0.0.1", 9502, SWOOLE_SOCK_UDP);
-$port3 = $server->listen("127.0.0.1", 9503, SWOOLE_SOCK_TCP | SWOOLE_SSL);
-```
+- `Swoole`通过[Swoole\Server->listen()](/server/methods?id=listen)方法监听多个端口。该方法返回[Swoole\Server\Port](/server/swoole_server_port) 对象。这意味着你可以同时处理 HTTP、TCP、UDP 等不同协议，实现高效的端口复用。
 
-## 设置网络协议
+* **示例**
 
 ```php
-//port对象的调用set方法
-$port1->set([
-	'open_length_check' => true,
-	'package_length_type' => 'N',
-	'package_length_offset' => 0,
-	'package_max_length' => 800000,
-]);
+<?php
+use Swoole\Server;
 
-$port3->set([
-	'open_eof_split' => true,
-	'package_eof' => "\r\n",
-	'ssl_cert_file' => 'ssl.cert',
-	'ssl_key_file' => 'ssl.key',
-]);
-```
+$server = new Server('127.0.0.1', 9501);
 
-## 设置回调函数
+// 监听 9502 端口，纯 TCP 协议
+$port1 = $server->listen("127.0.0.1", 9502, SWOOLE_SOCK_TCP);
 
-```php
-//设置每个port的回调函数
-$port1->on('connect', function ($serv, $fd){
-    echo "Client:Connect.\n";
-});
+// 监听 9503 端口，纯 TCP 协议
+$port2 = $server->listen("127.0.0.1", 9503, SWOOLE_SOCK_TCP);
 
-$port1->on('receive', function ($serv, $fd, $reactor_id, $data) {
-    $serv->send($fd, 'Swoole: '.$data);
-    $serv->close($fd);
-});
+// 监听 9504 端口，纯 TCP 协议
+$port3 = $server->listen("127.0.0.1", 9504, SWOOLE_SOCK_TCP);
 
-$port1->on('close', function ($serv, $fd) {
-    echo "Client: Close.\n";
-});
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
 
-$port2->on('packet', function ($serv, $data, $addr) {
-    var_dump($data, $addr);
-});
-```
-
-## Http/WebSocket
-
-`Swoole\Http\Server`和`Swoole\WebSocket\Server`因为是使用继承子类实现的，无法通过调用`Swoole\Server`实例的`listen`来方法创建HTTP或者WebSocket服务器。
-
-如服务器的主要功能为`RPC`，但希望提供一个简单的Web管理界面。在这样的场景中，可以先创建`HTTP/WebSocket`服务器，然后再进行`listen`监听原生TCP的端口。
-
-### 示例
-
-```php
-$http_server = new Swoole\Http\Server('0.0.0.0',9998);
-$http_server->set(['daemonize'=> false]);
-$http_server->on('request', function ($request, $response) {
-    $response->header("Content-Type", "text/html; charset=utf-8");
-    $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
-});
-
-//多监听一个TCP端口，对外开启TCP服务，并设置TCP服务器的回调
-$tcp_server = $http_server->listen('0.0.0.0', 9999, SWOOLE_SOCK_TCP);
-//默认新监听的端口 9999 会继承主服务器的设置，也是 HTTP 协议
-//需要调用 set 方法覆盖主服务器的设置
-$tcp_server->set([]);
-$tcp_server->on('receive', function ($server, $fd, $threadId, $data) {
-    echo $data;
-});
-
-$http_server->start();
-```
-
-通过这样的代码，就可以建立一个对外提供HTTP服务，又同时对外提供TCP服务的Server，更加具体的优雅代码组合则由你自己来实现。
-
-## TCP、HTTP、WebSocket多协议端口复合设置
-
-```php
-$port1 = $server->listen("127.0.0.1", 9501, SWOOLE_SOCK_TCP);
-$port1->set([
-    'open_websocket_protocol' => true, // 设置使得这个端口支持WebSocket协议
-]);
-```
-
-```php
-$port1 = $server->listen("127.0.0.1", 9501, SWOOLE_SOCK_TCP);
-$port1->set([
-    'open_http_protocol' => false, // 设置这个端口关闭HTTP协议功能
-]);
-```
-
-同理还有：`open_http_protocol`、`open_http2_protocol`、`open_mqtt_protocol` 等参数
-
-## 可选参数
-
-* 监听端口`port`未调用`set`方法，设置协议处理选项的监听端口，将会继承主服务器的相关配置
-* 主服务器为`HTTP/WebSocket`服务器，如果未设置协议参数，监听的端口仍然会设置为`HTTP`或`WebSocket`协议，并且不会执行为端口设置的[onReceive](/server/events?id=onreceive)回调
-* 主服务器为`HTTP/WebSocket`服务器，监听端口调用`set`设置配置参数，会清除主服务器的协议设定。监听端口将变为`TCP`协议。监听的端口如果希望仍然使用`HTTP/WebSocket`协议，需要在配置中增加`open_http_protocol => true` 和 `open_websocket_protocol => true`
-
-**`port`可以通过`set`设置的参数有：**
-
-* socket参数：如`backlog`、`open_tcp_keepalive`、`open_tcp_nodelay`、`tcp_defer_accept`等
-* 协议相关：如`open_length_check`、`open_eof_check`、`package_length_type`等
-* SSL证书相关：如`ssl_cert_file`、`ssl_key_file`等
-
-具体可参考[配置章节](/server/setting)
-
-## 可选回调
-
-`port`未调用`on`方法，设置回调函数的监听端口，默认使用主服务器的回调函数，`port`可以通过`on`方法设置的回调有：
- 
-### TCP服务器
-
-* onConnect
-* onClose
-* onReceive
-
-### UDP服务器
-
-* onPacket
-* onReceive
-    
-### HTTP服务器
-
-* onRequest
-    
-### WebSocket服务器
-
-* onMessage
-* onOpen
-* onHandshake
-
-!> 不同监听端口的回调函数，仍然是相同的`Worker`进程空间内执行
-
-## 多端口下的连接遍历
-
-```php
-$server = new Swoole\WebSocket\Server("0.0.0.0", 9514, SWOOLE_BASE);
-
-$tcp = $server->listen("0.0.0.0", 9515, SWOOLE_SOCK_TCP);
-$tcp->set([]);
-
-$server->on("open", function ($serv, $req) {
-    echo "new WebSocket Client, fd={$req->fd}\n";
-});
-
-$server->on("message", function ($serv, $frame) {
-    echo "receive from {$frame->fd}:{$frame->data},opcode:{$frame->opcode},fin:{$frame->finish}\n";
-    $serv->push($frame->fd, "this is server OnMessage");
-});
-
-$tcp->on('receive', function ($server, $fd, $reactor_id, $data) {
-    //仅遍历 9514 端口的连接，因为是用的$server，不是$tcp
-    $websocket = $server->ports[0];
-    foreach ($websocket->connections as $_fd) {
-        var_dump($_fd);
-        if ($server->exist($_fd)) {
-            $server->push($_fd, "this is server onReceive");
-        }
-    }
-    $server->send($fd, 'receive: '.$data);
 });
 
 $server->start();
 ```
+
+## 协议配置和事件回调
+
+- 当你通过[Swoole\Server->listen()](/server/methods?id=listen)添加一个新端口时，它就像一个“克隆体”，默认会继承主端口的协议配置（如 `HTTP`、`WebSocket`）和事件回调。假设主端口配置为`HTTP`服务时，新监听的端口若未显式配置，将直接继承主端口的`HTTP`协议设置，自动以HTTP服务模式运行。
+
+- 如果你想让新端口处理不同的协议（例如主端口是 `HTTP`，新端口是 `TCP`），你必须显式地调用 `Swoole\Server\Port->set()` 和 `Swoole\Server\Port->on()` 来修改协议配置，并重新绑定事件。
+
+* **示例一：TCP 端口配置覆盖，主端口 9501 是 TCP，子端口 9502 也是 TCP，但处理逻辑和包长规则不同。**
+
+```php
+<?php
+use Swoole\Server;
+
+$server = new Server('127.0.0.1', 9501);
+
+// 1. 主端口配置：假设用于处理某种定长包
+$server->set([
+    'open_length_check' => true,
+    'package_length_type' => 'C',
+    'package_length_offset' => 100, // 假设第100字节是包长度的值
+    'package_max_length' => 1000,  // 发送到9501端口的数据一定不会超过1000字节
+]);
+
+// 主端口接收事件
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+    echo "9501 端口收到数据\n";
+});
+
+// 2. 监听子端口 9502
+$port = $server->listen("127.0.0.1", 9502, SWOOLE_SOCK_TCP);
+
+// 【关键】必须重写配置，否则 9502 也会使用上面的 package_length_type=C，package_length_offset=100和package_max_length=1000
+$port->set([
+    'open_length_check' => true,
+    'package_length_type' => 'N',
+    'package_length_offset' => 200, // 假设第200字节是包长度的值
+    'package_max_length' => 800000, // 发送到9502端口的数据一定不会超过800000字节
+]);
+
+// 【关键】必须为子端口单独绑定事件，否则还是触发主端口的receive事件
+$port->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+    echo "9502 端口收到数据，使用不同的解析规则\n";
+});
+
+$server->start();
+```
+
+
+* **示例二：主端口 9501 是 HTTP 服务，想加一个 9502 端口专门做 TCP 透传。**
+
+```php
+<?php
+use Swoole\Http\Server;
+use Swoole\Http\Request;
+use Swoole\Http\Response;
+
+$server = new Server('127.0.0.1', 9501);
+
+// 主端口 HTTP 逻辑
+$server->on('request', function(Request $request, Response $response) {
+    $response->end("Hello HTTP");
+});
+
+// 监听子端口 9502
+$port = $server->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);
+
+// 【关键步骤 1】重置协议配置
+// 如果不写这一步，9502 端口收到的数据会被当成 HTTP 请求解析，导致失败
+$port->set([
+    'open_http_protocol' => false, // 关闭 HTTP 协议
+    // 这里可以添加 TCP 相关的配置，如 open_length_check 等
+]);
+
+// 【关键步骤 2】在 $port 对象上绑定 receive 事件
+// 注意：不能写在 $server->on('receive') 里，因为主服务器是 HTTP 模式，不支持 receive
+$port->on('receive', function($server, $fd, $reactorId, $data) {
+    $server->send($fd, "TCP Port 9502 received: $data");
+});
+
+$server->start();
+```
+
+- `Swoole\Server\Port->set()`可以设置的协议有：
+
+| 配置项                                                                         | 说明                       |
+|-----------------------------------------------------------------------------|--------------------------|
+| [backlog](/server/setting?id=backlog)                                       | 监听队列长度                   |
+| [socket_buffer_size](/server/setting?id=socket_buffer_size)                 | 配置客户端连接的缓存区长度            |
+| [heartbeat_idle_time](/server/setting?id=heartbeat_idle_time)               | 连接最大允许空闲的时间              |
+| [buffer_high_watermark](/server/setting?id=buffer_high_watermark)           | 缓存区高水位线                  |
+| [buffer_low_watermark](/server/setting?id=buffer_low_watermark)             | 缓存区低水位线                  |
+| [max_idle_time](/server/setting?id=max_idle_time)                           | 最大空闲时间                   |
+| [open_tcp_nodelay](/server/setting?id=open_tcp_nodelay)                     | 启用 TCP_NODELAY           |
+| [tcp_defer_accept](/server/setting?id=tcp_defer_accept)                     | 启用 TCP_DEFAT_ACCEPT      |
+| [open_tcp_keepalive](/server/setting?id=open_tcp_keepalive)                 | 启用 TCP keepalive         |
+| [tcp_keepidle](/server/setting?id=tcp_keepidle)                             | keepalive 空闲探测时间         |
+| [tcp_keepinterval](/server/setting?id=tcp_keepinterval)                     | keepalive 探测间隔           |
+| [tcp_keepcount](/server/setting?id=tcp_keepcount)                           | keepalive 探测次数           |
+| [tcp_user_timeout](/server/setting?id=tcp_user_timeout)                     | TCP 数据在确认对方未响应时，等待的最大时间（毫秒） |
+| [tcp_fastopen](/server/setting?id=tcp_fastopen)                             | 开启 TCP 快速握手特性            |
+| [open_eof_check](/server/setting?id=open_eof_check)                         | 开启 EOF 检测                |
+| [open_eof_split](/server/setting?id=open_eof_split)                         | 开启 EOF 自动分包              |
+| [package_eof](/server/setting?id=package_eof)                               | 设置 EOF 字符串               |
+| [open_length_check](/server/setting?id=open_length_check)                   | 开启长度检测                   |
+| [package_length_type](/server/setting?id=package_length_type)               | 长度值的类型，接受一个字符参数          |
+| [package_length_offset](/server/setting?id=package_length_offset)           | 包的长度值在包头的第几个字节           |
+| [package_body_offset](/server/setting?id=package_body_offset)               | 从第几个字节开始包体计算长度           |
+| [package_length_func](/server/setting?id=package_length_func)               | 设置包长度计算函数                |
+| [package_max_length](/server/setting?id=package_max_length)                 | 设置最大数据包尺寸，单位为字节                  |
+| [open_http_protocol](/server/setting?id=open_http_protocol)                 | 开启 HTTP 协议               |
+| [open_websocket_protocol](/server/setting?id=open_websocket_protocol)       | 开启 WebSocket 协议          |
+| [open_http2_protocol](/server/setting?id=open_http2_protocol)               | 开启 HTTP2 协议              |
+| [open_mqtt_protocol](/server/setting?id=open_mqtt_protocol)                 | 开启 MQTT 协议               |
+| [open_redis_protocol](/server/setting?id=open_redis_protocol)               | 开启 Redis 协议              |
+| [ssl_compress](/server/setting?id=ssl_compress)                             | 设置是否启用 SSL/TLS 压缩                 |
+| [ssl_protocols](/server/setting?id=ssl_protocols)                           | 设置 OpenSSL 隧道加密的协议               |
+| [ssl_verify_peer](/server/setting?id=ssl_verify_peer)                       | 服务 SSL 设置验证对端证书                  |
+| [ssl_allow_self_signed](/server/setting?id=ssl_allow_self_signed)           | 允许自签名证书                  |
+| [ssl_client_cert_file](/server/setting?id=ssl_client_cert_file)             | 根证书，用于验证客户端证书                 |
+| [ssl_cafile](/server/setting?id=ssl_cafile)                                 | CA 证书文件                  |
+| [ssl_capath](/server/setting?id=ssl_capath)                                 | CA 证书目录                  |
+| [ssl_verify_depth](/server/setting?id=ssl_verify_depth)                     | 如果证书链条层次太深，超过了本选项的设定值，则终止验证|
+| [ssl_prefer_server_ciphers](/server/setting?id=ssl_prefer_server_ciphers)   | 启用服务器端保护，防止 BEAST 攻击|
+| [ssl_ciphers](/server/setting?id=ssl_ciphers)                               | 设置 openssl 加密算法。                   |
+| [ssl_ecdh_curve](/server/setting?id=ssl_ecdh_curve)                         | 指定用在 ECDH 密钥交换中的 curve                 |
+| [ssl_dhparam](/server/setting?id=ssl_dhparam)                               | 指定 DHE 密码器的 Diffie-Hellman 参数                 |
+| [ssl_sni_certs](/server/setting?id=ssl_sni_certs)                           | 设置 SNI (Server Name Identification) 证书|
+
+
+- `Swoole\Server\Port->on()`可以监听的事件有：
+
+
+| 事件                                                                   | 说明                       |
+  |----------------------------------------------------------------------|--------------------------|
+| [connect](/server/events?id=connect)                                 | 客户端连接建立                  |
+| [close](/server/events?id=close)                                     | 客户端连接关闭                  |
+| [disconnect](/server/events?id=disconnect)                           | 连接断开（通常用于长连接）            |
+| [receive](/server/events?id=receive)                                 | 接收数据流                    |
+| [packet](/server/events?id=packet)                                   | 接收 UDP 数据包               |
+| [message](/server/events?id=message)                                 | 接收消息（通常用于 WebSocket）     |
+| [request](/server/events?id=request)                                 | HTTP 请求                  |
+| [handShake](/server/events?id=handShake)                             | 握手事件                     |
+| [beforeHandshakeResponse](/server/events?id=beforeHandshakeResponse) | 握手响应前                    |
+| [open](/server/events?id=open)                                       | 连接开启（通常指 WebSocket 握手成功） |
+
+## 注意
+
+!> `Swoole\Http\Server` 和 `Swoole\WebSocket\Server` 是通过继承 `Swoole\Server` 实现的。因此，如果你创建了一个普通的 `TCP` 服务器，无法通过 `Swoole\Server->listen()` 方法给它添加 `HTTP` 或 `WebSocket` 子端口。 简单说：主服务器是什么类型，决定了它能监听什么类型的子端口。主端口不能升级，只能降级。
+
+* **错误示例**
+
+```php
+<?php
+use Swoole\Server;
+use Swoole\Http\Request;
+use Swoole\Http\Response;
+use Swoole\WebSocket\Server as WebsocketServer;
+use Swoole\WebSocket\Frame;
+
+
+// 创建一个 TCP 服务器
+$server = new Server('127.0.0.1', 9501);  // 主端口监听TCP
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+  echo "Hello TCP!!!";
+});
+
+// 尝试在子端口 9502 监听 HTTP 协议 —— 无效
+$port1 = $server->listen("127.0.0.1", 9502, SWOOLE_SOCK_TCP);
+$port1->set([
+  'open_http_protocol' => true,
+  'package_max_length' => 800000,
+]);
+$port1->on('request', function(Request $request, Response $reponse) {
+  echo "Hello HTTP!!!";
+});
+
+// 尝试在子端口 9503 监听 Websocket 协议 —— 无效
+$port2 = $server->listen("127.0.0.1", 9503, SWOOLE_SOCK_TCP);
+$port2->set([
+  'open_websocket_protocol' => true,
+  'package_max_length' => 800000,
+]);
+$port2->on('message', function (WebsocketServer $server,  Frame $frame) {
+  echo "Hello Websocket!!!";
+});
+
+$server->start();
+```
+
+* **正确做法（降级方案）**
+
+- 场景：你的主要功能是 `HTTP/WebSocket`，但还想提供一个简单的 TCP 管理接口。
+
+- 解决方案：先创建 `HTTP 或 WebSocket` 服务器，再通过 `Swoole\Server->listen()` 添加 `TCP` 子端口。
+
+```php
+<?php
+use Swoole\Server;
+use Swoole\Http\Server;
+use Swoole\Http\Request;
+use Swoole\Http\Response;
+// 先起启动一个 HTTP 服务器
+$http = new Server('127.0.0.1', 9501);
+$http->on('request', function(Request $request, Response $response) {
+  $response->header("Content-Type", "text/html; charset=utf-8");
+  $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+});
+
+// 监听 TCP 服务器
+$port = $http->listen('127.0.0.1', 9502, SWOOLE_TCP);
+// 重置从HTTP服务器继承过来的协议配置
+$port->set(['open_http_protocol' => false]); 
+// 重新设置事件监听
+$port->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+
+});
+
+$http->start();
+```
+
+| 主服务器类型 | 能否添加 HTTP 子端口 | 能否添加 WebSocket 子端口 | 能否添加 TCP 子端口 |
+|------------|-------------------|-------------------------|-------------------|
+| TCP        | ❌ 不行 | ❌ 不行 | ✅ 可以 |
+| HTTP       | ✅ 可以 | ❌ 不行 | ✅ 可以 |
+| WebSocket  | ✅ 可以 | ✅ 可以 | ✅ 可以 |
+
+> **记忆口诀**：主服务器选最强的（WebSocket > HTTP > TCP），子端口只能降级不能升级。
+
+

@@ -187,18 +187,21 @@ $server->start();
 
 ### ports
 
-监听端口数组，如果服务器监听了多个端口可以遍历`Server::$ports`得到所有`Swoole\Server\Port`对象。
+- 如果服务器通过`Swoole\Server->listen()`监听了多个端口，可以遍历`Swoole\Server::$ports`得到所有`Swoole\Server\Port`对象。
 
-其中`swoole_server::$ports[0]`为构造方法所设置的主服务器端口。
+其中`Swoole\Server::$ports[0]`为构造方法所设置的主服务器端口。
 
   * **示例**
 
 ```php
-$ports = $server->ports;
-$ports[0]->set($settings);
-$ports[1]->on('Receive', function () {
-    //callback
+use Swoole\Server;
+$server = new Server("127.0.0.1", 9501); // 主服务器端口
+$port = $server->listen('127.0.0.1', 9502);
+
+$server->on('receive', function ($server, $fd, $reactor_id, $data) {
+  var_dump($server->ports);
 });
+$server->start();
 ```
 
 ### master_pid

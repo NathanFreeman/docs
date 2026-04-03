@@ -4,7 +4,22 @@
 
 ## start
 
-?> **启动后在主进程（master）的主线程触发此函数**
+- 启动后在主进程（master）的主线程触发此函数
+
+```php
+function(Swoole\Server $server) {}
+```
+
+* **参数**
+
+  * **`Swoole\Server $server`**
+    * **说明**：Swoole\Server 对象实例
+    * **默认值**：无
+    * **其它值**：无
+
+---
+
+* **示例**
 
 ```php
 <?php
@@ -20,12 +35,8 @@ $server->on('receive', function(Server $server, int $fd, int $reactorId, string 
 $server->start();
 ```
 
-* **参数**
+---
 
-  * **`Swoole\Server $server`**
-    * **说明**：Swoole\Server 对象实例
-    * **默认值**：无
-    * **其它值**：无
 
 * **在此事件之前 Server 已完成以下操作**
 
@@ -38,7 +49,6 @@ $server->start();
 
   * [Reactor](/learn?id=reactor线程) 线程开始接收事件，客户端可连接到服务端
 
----
 
 **使用说明**
 
@@ -77,24 +87,12 @@ $server->start();
 
 
 ## connect
-?> **有新的连接进入时，会在worker进程中触发此事件。**
+- 有新连接进入时，会在worker进程中触发此事件。
 
 ```php
-<?php
-use Swoole\Server;
-$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
-$server->on('connect', function(Server $server, int $fd, int $reactorId) {
-  echo 'new connection coming' . PHP_EOL;
-});
-
-$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  echo $data . PHP_EOL;
-});
-
-$server->start();
+function(Swoole\Server $server, int $fd, int $reactorId) {}
 ```
 
----
 
 * **参数**
 
@@ -113,9 +111,45 @@ $server->start();
     * **默认值**：无
     * **其它值**：无
 
+---
+
+* **示例**
+
+```php
+<?php
+use Swoole\Server;
+$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
+$server->on('connect', function(Server $server, int $fd, int $reactorId) {
+  echo 'new connection coming' . PHP_EOL;
+});
+
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+  echo $data . PHP_EOL;
+});
+
+$server->start();
+```
+
+
 ## beforeShutdown
 
-?> **在进程正常退出前触发此事件**
+- 在进程正常退出前触发此事件
+
+```php
+function (Swoole\Server $server) {}
+```
+
+
+* **参数**
+
+  * **`Swoole\Server $server`**
+    * **说明**：Swoole\Server 对象实例
+    * **默认值**：无
+    * **其它值**：无
+
+---
+
+* **示例**
 
 ```php
 <?php
@@ -134,22 +168,13 @@ $server->start();
 
 ---
 
-* **参数**
-
-  * **`Swoole\Server $server`**
-    * **说明**：Swoole\Server 对象实例
-    * **默认值**：无
-    * **其它值**：无
-
----
-
-#### 版本要求
+##### 版本要求
 
 - Swoole 版本 >= `v4.8.0`
 
 ---
 
-#### 触发时机
+##### 触发时机
 
 当通过信号或终止服务进程时，以下进程会触发 `beforeshutdown` 事件：
 
@@ -164,7 +189,7 @@ $server->start();
 
 ---
 
-#### 注意事项
+##### 注意事项
 
 1. **Manager 进程和Swoole\Process 用户自定义进程不会触发此事件**。
 2. 事件触发中支持协程，可安全使用协程 API。
@@ -172,7 +197,20 @@ $server->start();
 
 ## shutdown
 
-?> **该事件在进程正常退出时触发**
+- 该事件在进程正常退出时触发
+
+```php
+function(Swoole\Server $server) {}
+```
+
+* **参数说明**
+
+  * **`Swoole\Server $server`**
+    * **说明**：Swoole\Server 对象实例
+    * **默认值**：无
+    * **其他值**：无
+
+* **示例**
 
 ```php
 <?php
@@ -188,13 +226,6 @@ $server->on('receive', function(Server $server, int $fd, int $reactorId, string 
 
 $server->start();
 ```
-
-* **参数说明**
-
-  * **`Swoole\Server $server`**
-    * **说明**：Swoole\Server 对象实例
-    * **默认值**：无
-    * **其他值**：无
 
 ---
 
@@ -229,7 +260,27 @@ $server->start();
 
 
 ## workerStart 
-?> **此事件在 Worker进程/ [Task进程](/learn?id=taskworker进程) 启动时发生，这里创建的对象可以在进程生命周期内使用。**
+- 此事件在 Worker进程/ [Task进程](/learn?id=taskworker进程) 启动时发生，这里创建的对象可以在进程生命周期内使用。
+
+```php
+function(Swoole\Server $server, int $workerId) {}
+```
+
+* **参数说明**
+
+  * **`Swoole\Server $server`**
+    * **功能**：Swoole\Server对象
+    * **默认值**：无
+    * **其它值**：无
+
+  * **`int $workerId`**
+    * **功能**：进程序号，非系统 PID。
+    * **默认值**：无
+    * **其它值**：无
+
+---
+
+* **示例**
 
 ```php
 <?php
@@ -247,21 +298,8 @@ $server->start();
 
 ---
 
-* **参数说明**
 
-  * **`Swoole\Server $server`**
-    * **功能**：Swoole\Server对象
-    * **默认值**：无
-    * **其它值**：无
-
-  * **`int $workerId`**
-    * **功能**：进程序号，非系统 PID。
-    * **默认值**：无
-    * **其它值**：无
-
----
-
-#### 代码热重载支持
+###### 代码热重载支持
 若要支持进程重启机制实现代码热重载，**可以在 `workerStart` 中引入代码文件**。这样进程重启会加载新的代码文件。 
 
 在 `workerStart ` 之前引入的文件（如公共库）不会在进程重启时重新加载，但可在所有进程间共享内存。可以将公用的、不易变的 `php` 文件放置到 `workerStart ` 之前。这样虽然不能重载入代码，但所有 `Worker` 是共享的，不需要额外的内存来保存这些数据。 `workerStart ` 之后的代码每个进程都需要在内存中保存一份。
@@ -302,7 +340,7 @@ $server->on('workerStart ', function ($server, $workerId) {
 ---
 
 
-#### 协程支持
+###### 协程支持
 
 在 `onworkerStart ` 触发中**会自动创建协程环境**，因此可以直接使用协程 API：
 ```php
@@ -332,29 +370,11 @@ if ($server->taskworker) {
 ```
 
 ## workerExit
-?> **仅在开启[reload_async](/server/setting?id=reload_async)特性后有效。参见 [如何正确的重启服务](/question/use?id=swoole如何正确的重启服务)**
+- 仅在开启[reload_async](/server/setting?id=reload_async)特性才会触发`workerExit`，进程退出前会触发。参见 [如何正确的重启服务](/question/use?id=swoole如何正确的重启服务)
 
 ```php
-<?php
-use Swoole\Server;
-$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
-$server->set([
-  'reload_async' => true,
-  'max_wait_time' => 10
-]);
-$server->on('workerExit', function (Server $server, int $workerId) {
-    echo "Worker 停止，ID: {$workerId}\n";
-});
-
-$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  echo $data . PHP_EOL;
-});
-$server->start();
+function(Swoole\Server $server, int $workerId) {}
 ```
-
-  
----
-
 
 * **参数**
 
@@ -368,7 +388,28 @@ $server->start();
     * **默认值**：无
     * **其它值**：无
 
-  
+---
+
+* **示例**
+
+```php
+<?php
+use Swoole\Server;
+$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
+$server->set([
+  'reload_async' => true,  // 开启这个才会触发workerExit
+  'max_wait_time' => 10
+]);
+$server->on('workerExit', function (Server $server, int $workerId) {
+    echo "Worker 停止，ID: {$workerId}\n";
+});
+
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+  echo $data . PHP_EOL;
+});
+$server->start();
+```
+
 ---
 
 
@@ -386,7 +427,26 @@ $server->start();
 
 ## workerStop
 
-?> **此事件在`Worker`进程终止时发生。在此函数中可以回收`Worker`进程申请的各类资源。**
+- 此事件在`worker`进程终止时发生。在此函数中可以回收`worker`进程申请的各类资源。
+
+```php
+function (Swoole\Server $server, int $workerId) {}
+```
+
+* **参数**
+
+  * **`Swoole\Server $server`**
+    * **功能**：Swoole\Server对象
+    * **默认值**：无
+    * **其它值**：无
+
+  * **`int $workerId`**
+    * **功能**：进程序号，非系统 PID。
+    * **默认值**：无
+    * **其它值**：无
+
+  
+---
 
 ```php
 <?php
@@ -406,51 +466,17 @@ $server->start();
 ---
 
 
-* **参数**
-
-  * **`Swoole\Server $server`**
-    * **功能**：Swoole\Server对象
-    * **默认值**：无
-    * **其它值**：无
-
-  * **`int $workerId`**
-    * **功能**：进程序号，非系统 PID。
-    * **默认值**：无
-    * **其它值**：无
-
-  
----
-
-
 !> 进程异常结束，如被强制`kill`、致命错误、`core dump`时无法执行`workerstop`触发函数。  
 
 !> 请勿在`workerstop`中调用任何异步或协程相关`API`，触发`workerstop`时底层已销毁了所有[事件循环](/learn?id=什么是eventloop)设施。
 
-**workerExit 与 workerStop 的区别**
-- `workerExit`：用于在 `max_wait_time` 规定的时间内执行**柔性关闭**，主动清理并关闭所有事件句柄监听。
-- `workerStop`：仅作为**进程停止的通知**，不参与柔性关闭，执行时机在 Worker 进程完全退出之后。
-
 
 ## workerError
-?> **此事件在`worker`进程异常退出时触发。**
+- 此事件在`worker`进程异常退出时触发。
 
 ```php
-<?php
-use Swoole\Server;
-$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
-$server->on('workerError', function (Server $server, int $workerId, int $pid, int $exitCode, int $signal) {
-    echo "Worker 异常退出，ID: {$workerId}\n";
-});
-
-$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  echo $data . PHP_EOL;
-});
-
-$server->start();
+function (Server $server, int $workerId, int $pid, int $exitCode, int $signal) {}
 ```
-
----
-
 
 * **参数**
 
@@ -481,18 +507,54 @@ $server->start();
 
 ---
 
-!> 此函数主要用于报警和监控，一旦发现Worker进程异常退出，那么很有可能是遇到了致命错误或者进程Core Dump。通过记录日志或者发送报警的信息来提示开发者进行相应的处理。
+* **示例**
 
-!> `$signal = 11`：说明`Worker`进程发生了`segment fault`段错误，可能触发了底层的`BUG`，请收集`core dump`信息和`valgrind`内存检测日志，[向Swoole开发组反馈此问题](/other/issue)。
+```php
+<?php
+use Swoole\Server;
+$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
+$server->on('workerError', function (Server $server, int $workerId, int $pid, int $exitCode, int $signal) {
+    echo "Worker 异常退出，ID: {$workerId}\n";
+});
 
-!> `$exitCode = 255`：说明Worker进程发生了`Fatal Error`致命错误，请检查PHP的错误日志，找到存在问题的PHP代码，进行解决。
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+  echo $data . PHP_EOL;
+});
 
-!> `$signal = 9`：说明`worker`被系统强行`Kill`，请检查是否有人为的`kill -9`操作，检查`dmesg`信息中是否存在`OOM（Out of memory）`
+$server->start();
+```
 
-!> 如果存在`OOM`，分配了过大的内存。1.检查`Server`的`setting`配置，是否[socket_buffer_size](/server/setting?id=socket_buffer_size)等分配过大；2.是否创建了非常大的[Swoole\Table](/memory/table)内存模块。
+---
+
+
+> 此函数主要用于报警和监控，一旦发现Worker进程异常退出，那么很有可能是遇到了致命错误或者进程Core Dump。通过记录日志或者发送报警的信息来提示开发者进行相应的处理。
+
+> `$signal = 11`：说明`Worker`进程发生了`segment fault`段错误，可能触发了底层的`BUG`，请收集`core dump`信息和`valgrind`内存检测日志，[向Swoole开发组反馈此问题](/other/issue)。
+
+> `$exitCode = 255`：说明Worker进程发生了`Fatal Error`致命错误，请检查PHP的错误日志，找到存在问题的PHP代码，进行解决。
+
+> `$signal = 9`：说明`worker`被系统强行`Kill`，请检查是否有人为的`kill -9`操作，检查`dmesg`信息中是否存在`OOM（Out of memory）`
+
+> 如果存在`OOM`，分配了过大的内存。1.检查`Server`的`setting`配置，是否[socket_buffer_size](/server/setting?id=socket_buffer_size)等分配过大；2.是否创建了非常大的[Swoole\Table](/memory/table)内存模块。
 
 ## beforeReload
-?> **worker进程/task进程重启之前触发此事件，该事件在Manager进程中执行**
+- worker进程/task进程重启之前触发此事件，该事件在Manager进程中执行
+
+```php
+function(Server $server, int $fd, int $reactorId, string $data) {}
+```
+
+* **参数**
+
+  * **`Swoole\Server $server`**
+    * **功能**：Swoole\Server对象
+    * **默认值**：无
+    * **其它值**：无
+
+---
+
+* **示例**
+
 ```php
 <?php
 use Swoole\Server;
@@ -510,6 +572,26 @@ $server->start();
 
 ---
 
+
+> `worker`进程重启是可重入的，在上一个重启请求未完成时，下一个重启请求将会被忽略。
+
+!> 禁止在`beforeReload`事件中使用阻塞函数例如`while(1) {}`来阻塞代码，否则进程将无法重启。
+
+> 如果在规定的`max_wait_time`时间中进程没有重启完毕，所有的`worker`进程会被强制杀死。
+
+> 向`master` 进程 / `manager` 进程`发送`SIGUSR1`信号，将平稳地重启所有`worker`进程和`task`进程。
+
+> 向`master` 进程 / `manager` 进程`发送`SIGUSR2`信号，将平稳地重启所有`task`进程。
+
+> `Swoole\Process`进程退出时，不会触发此事件。
+
+## afterReload
+- worker进程/task进程重启之后触发此事件，该事件在Manager进程中执行。
+
+```php
+function(Swoole\Server $server, int $fd, int $reactorId, string $data) {}
+```
+
 * **参数**
 
   * **`Swoole\Server $server`**
@@ -519,20 +601,7 @@ $server->start();
 
 ---
 
-!> `worker`进程重启是可重入的，在上一个重启请求未完成时，下一个重启请求将会被忽略。
-
-!> 禁止在`beforeReload`事件中使用阻塞函数，否则进程将无法重启。
-
-!> 如果在规定的`max_wait_time`时间中进程没有重启完毕，所有的`worker`进程会被强制杀死。
-
-!> 向`master` 进程 / `manager` 进程`发送`SIGUSR1`信号，将平稳地重启所有`worker`进程和`task`进程。
-
-!> 向`master` 进程 / `manager` 进程`发送`SIGUSR2`信号，将平稳地重启所有`task`进程。
-
-!> `Swoole\Process`进程退出时，不会触发此事件。
-
-## afterReload
-?> **worker进程/task进程重启之后触发此事件，该事件在Manager进程中执行**
+* **示例**
 
 ```php
 <?php
@@ -549,38 +618,14 @@ $server->on('receive', function(Server $server, int $fd, int $reactorId, string 
 $server->start();
 ```
 
----
 
-* **参数**
-
-  * **`Swoole\Server $server`**
-    * **功能**：Swoole\Server对象
-    * **默认值**：无
-    * **其它值**：无
 
 ## task
-?> **worker进程向task进程发送数据时，在task进程中触发此事件，该方式用于处理一些耗时任务，避免worker进程阻塞**
+- worker进程向task进程发送数据时，在task进程中触发此事件，该方式用于处理一些耗时任务，避免worker进程阻塞
 
 ```php
-<?php
-use Swoole\Http\Server;
-use Swoole\Http\Request;
-use Swoole\Http\Response;
-$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
-$server->set(['task_worker_num' => 2]);
-$server->on('request', function(Request $request, Response $reponse) use ($server) {
-  $server->task('Hello Swoole!!!!');
-});
-$server->on('task', function (Server $server, int $taskId, int $workerId, mixed $data) {
-    echo $data . PHP_EOL;
-});
-
-$server->start();
+function (Swoole\Server $server, int $taskId, int $workerId, mixed $data) {}
 ```
-
-
----
-
 
 * **参数**
 
@@ -608,18 +653,8 @@ $server->start();
 ---
 
 
-!> 必须设置`task_worker_num`，否则无法创建`task`进程，`worker`进程也没法投递任务。
+* **示例**
 
-!> 禁止在`task`事件中使用`Swoole\Server->task()`，底层会检查环境并且抛出`Server->task() cannot use in the task-worker`。
-
-!> 若未显式指定目标`task`进程，底层会通过取模方式从所有`task`进程中选择一个进行任务投递。不管该进程是否空闲。
-
-!> `task`进程接收到任务，会将自身状态设置为忙碌，这时将不再接收新的Task，如果所有的`task`进程全部忙碌，投递任务时会提示`No idle task worker is available`，需要等待目标`task`进程空闲下来。
-
-!> 执行时遇到致命错误退出，或者被外部进程强制`kill`，当前的任务会被丢弃，但不会影响其他正在排队的任务。
-
-## finish
-?> **此触发函数在worker进程被调用，当`worker`进程投递的任务在`task`进程中完成时， [task进程](/learn?id=taskworker进程)会通过`Swoole\Server->finish()`方法将任务处理的结果发送给`worker`进程。**
 ```php
 <?php
 use Swoole\Http\Server;
@@ -630,14 +665,8 @@ $server->set(['task_worker_num' => 2]);
 $server->on('request', function(Request $request, Response $reponse) use ($server) {
   $server->task('Hello Swoole!!!!');
 });
-
-$server->on('finish', function(Swoole\Server $server, int $taskId, mixed $data) {
-  echo $data . PHP_EOL; // task进程通过`Swoole\Server->finish()`返回数据  
-});
-
-$server->on('task', function (Server $server, int $taskId, int $workerId, mixed $data) use ($server) {
+$server->on('task', function (Server $server, int $taskId, int $workerId, mixed $data) {
     echo $data . PHP_EOL;
-    $server->finish($data);  // return $data; 也是同样的效果
 });
 
 $server->start();
@@ -646,6 +675,24 @@ $server->start();
 
 ---
 
+
+
+!> 必须设置`task_worker_num`，否则无法创建`task`进程，`worker`进程也没法投递任务。
+
+!> 禁止在`task`事件中使用`Swoole\Server->task()`，底层会检查环境并且抛出`Server->task() cannot use in the task-worker`。
+
+! 若未显式指定目标`task`进程，底层会通过取模方式从所有`task`进程中选择一个进行任务投递。不管该进程是否空闲。
+
+! `task`进程接收到任务，会将自身状态设置为忙碌，这时将不再接收新的Task，如果所有的`task`进程全部忙碌，投递任务时会提示`No idle task worker is available`，需要等待目标`task`进程空闲下来。
+
+! 执行时遇到致命错误退出，或者被外部进程强制`kill`，当前的任务会被丢弃，但不会影响其他正在排队的任务。
+
+## finish
+- 此触发函数在worker进程被调用，当`worker`进程投递的任务在`task`进程中完成时， [task进程](/learn?id=taskworker进程)会通过`Swoole\Server->finish()`函数或者`return`操作将任务处理的结果发送给`worker`进程。
+
+```php
+function(Swoole\Server $server, int $taskId, mixed $data) {}
+```
 
 * **参数**
 
@@ -664,14 +711,63 @@ $server->start();
     * **默认值**：无
     * **其它值**：无
 
-!> 如果在 [task](/server/events?id=task) 事件中**没有调用** `Swoole\Server->finish()` 方法，也**没有**通过 `return` 返回结果，则 worker 进程**不会触发** [finish](/server/events?id=finish) 事件。
+---
 
-!> 如果 [task](/server/events?id=task) 事件返回了结果，但**没有监听** `finish` 事件，底层会抛出异常：`require 'onFinish' callback`。
+* **示例**
 
-!> 执行 [finish](/server/events?id=finish) 逻辑的 worker 进程，与下发该 task 任务的 worker 进程是**同一个进程**。
+```php
+<?php
+use Swoole\Http\Server;
+use Swoole\Http\Request;
+use Swoole\Http\Response;
+$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
+$server->set(['task_worker_num' => 2]);
+$server->on('request', function(Request $request, Response $reponse) use ($server) {
+  $server->task('Hello Swoole!!!!');
+});
+
+$server->on('finish', function(Server $server, int $taskId, mixed $data) {
+  echo $data . PHP_EOL; // task进程通过`Swoole\Server->finish()`返回数据  
+});
+
+$server->on('task', function (Server $server, int $taskId, int $workerId, mixed $data) use ($server) {
+    echo $data . PHP_EOL;
+    $server->finish($data);  // return $data; 也是同样的效果
+});
+
+$server->start();
+```
+
+
+---
+
+
+
+
+> 如果在 [task](/server/events?id=task) 事件中**没有调用** `Swoole\Server->finish()` 函数，也**没有**通过 `return` 返回结果，则 worker 进程**不会触发** [finish](/server/events?id=finish) 事件。
+
+> 如果 [task](/server/events?id=task) 事件返回了结果，但**没有监听** `finish` 事件，底层会抛出异常：`require 'onFinish' callback`。
+
+> 执行 [finish](/server/events?id=finish) 逻辑的 worker 进程，与下发该 task 任务的 worker 进程是**同一个进程**。
 
 ## managerStart
-?> **当Manager进程启动时触发此事件**
+- 当Manager进程启动时触发此事件
+
+```php
+function(Swoole\Server $server, int $fd, int $reactorId, string $data) {}
+```
+
+* **参数**
+
+  * **`Swoole\Server $server`**
+    * **功能**：Swoole\Server对象
+    * **默认值**：无
+    * **其它值**：无
+
+
+---
+
+* **示例**
 
 ```php
 <?php
@@ -691,23 +787,13 @@ $server->start();
 ---
 
 
-* **参数**
-
-  * **`Swoole\Server $server`**
-    * **功能**：Swoole\Server对象
-    * **默认值**：无
-    * **其它值**：无
 
 
----
+> 在这个触发函数中可以修改管理进程的名称。
 
-!> 在这个触发函数中可以修改管理进程的名称。
+!> 在`4.2.12`以前的版本中`manager`进程中不能添加定时器，不能投递task任务、不能用协程。在`4.2.12`或更高版本中`manager`进程可以使用基于信号实现的同步模式定时器。
 
-!> 在`4.2.12`以前的版本中`manager`进程中不能添加定时器，不能投递task任务、不能用协程。
-
-!> 在`4.2.12`或更高版本中`manager`进程可以使用基于信号实现的同步模式定时器
-
-!> `manager`进程中可以调用[sendMessage](/server/methods?id=sendMessage)接口向其他工作进程发送消息
+> `manager`进程中可以调用[sendMessage](/server/methods?id=sendMessage)接口向其他工作进程发送消息
 
 ```php
 <?php
@@ -721,12 +807,32 @@ $server->on('receive', function(Server $server, int $fd, int $reactorId, string 
   echo $data . PHP_EOL;
 });
 
+
+$server->on('pipeMessage', function(Server $server, int $workerId, mixed $message) {
+  // 收到manager进程通过Swoole\Server->sendMessage()发送的信息
+});
+
 $server->start();
 ```
 
 
 ## managerStop
-?> **当Manager进程结束时触发**
+- 当Manager进程结束时触发。
+
+```php
+function(Swoole\Server $server) {}
+```
+
+* **参数**
+
+  * **`Swoole\Server $server`**
+    * **功能**：Swoole\Server对象
+    * **默认值**：无
+    * **其它值**：无
+
+---
+
+* **示例**
 
 ```php
 <?php
@@ -746,6 +852,16 @@ $server->start();
 ---
 
 
+
+> `managerStop`触发时，说明`task`和`worker`进程已结束运行，已被`Manager`进程回收。
+
+## pipeMessage
+- 当`worker`进程 / [Task进程](/learn?id=taskworker进程)进程收到由 `Swoole\Server->sendMessage()` 发送的[unixSocket](/learn?id=什么是IPC)消息时会触发 `pipeMessage` 事件。`worker/task` 进程都可能会触发 `pipeMessage` 事件。
+
+```php
+function(Swoole\Server $server, int $workerId, mixed $message) {}
+```
+
 * **参数**
 
   * **`Swoole\Server $server`**
@@ -753,12 +869,18 @@ $server->start();
     * **默认值**：无
     * **其它值**：无
 
----
+  * **`int $workerId`**
+    * **功能**：消息来自哪个进程序号
+    * **默认值**：无
+    * **其它值**：无
 
-!> `managerStop`触发时，说明`task`和`worker`进程已结束运行，已被`Manager`进程回收。
+  * **`mixed $message`**
+    * **功能**：消息内容，可以是任意PHP类型
+    * **默认值**：无
+    * **其它值**：无
 
-## pipeMessage
-?> **当`worker/task`进程收到由 `Swoole\Server->sendMessage()` 发送的[unixSocket](/learn?id=什么是IPC)消息时会触发 `onPipeMessage` 事件。`worker/task` 进程都可能会触发 `onPipeMessage` 事件**
+
+* **示例**
 
 ```php
 <?php
@@ -780,49 +902,19 @@ $server->on('request', function (Request $request, Reponse $response) use ($serv
 });
 
 $server->on('pipeMessage', function(Server $server, int $workerId, mixed $message) {
-  vvar_dump($workerId);
-  vvar_dump($message);
+  var_dump($workerId);
+  var_dump($message);
 });
 
 $server->start();
 ```
 
 
----
-
-
-* **参数**
-
-  * **`Swoole\Server $server`**
-    * **功能**：Swoole\Server对象
-    * **默认值**：无
-    * **其它值**：无
-
-  * **`int $workerId`**
-    * **功能**：消息来自哪个进程序号
-    * **默认值**：无
-    * **其它值**：无
-
-  * **`mixed $message`**
-    * **功能**：消息内容，可以是任意PHP类型
-    * **默认值**：无
-    * **其它值**：无
-
 ## receive
-?> **接收到`TCP`数据时触发此函数，在`worker`进程触发该事件。**
+- 接收到`TCP`数据时触发此函数，在`worker`进程触发该事件。
 
 ```php
-<?php
-use Swoole\Server;
-$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
-$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  echo $data . PHP_EOL;
-});
-
-$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  echo $data . PHP_EOL;
-});
-$server->start();
+function(Swoole\Server $server, int $fd, int $reactorId, string $data) {}
 ```
 
 * **参数**
@@ -847,6 +939,27 @@ $server->start();
     * **默认值**：无
     * **其它值**：无
 
+
+---
+
+* **示例**
+
+```php
+<?php
+use Swoole\Server;
+$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+  echo $data . PHP_EOL;
+});
+
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+  echo $data . PHP_EOL;
+});
+$server->start();
+```
+
+
+
 ---
 
 
@@ -865,9 +978,6 @@ $server->set([
   'open_http_protocol' => true,
   'package_max_length' => 2 * 1024 * 1024 // 最多接收2M的文件
 ]);
-$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  echo $data . PHP_EOL;
-});
 
 $server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
   echo $data . PHP_EOL;
@@ -877,22 +987,11 @@ $server->start();
 
 
 ## packet
-?> **接收到`UDP`数据时触发此函数，在`worker`进程触发该事件。**
+- 接收到`UDP`数据时触发此函数，在`worker`进程触发该事件。
+
 ```php
-<?php
-use Swoole\Server;
-$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
-$server->on('packet', function (Server $server, mixed $data, array $clientInfo) {
-    echo $data . PHP_EOL;
-});
-
-$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  echo $data . PHP_EOL;
-});
-$server->start();
+function (Swoole\Server $server, mixed $data, array $clientInfo) {}
 ```
-
----
 
 * **参数**
 
@@ -911,8 +1010,50 @@ $server->start();
     * **默认值**：无
     * **其它值**：无
 
+---
+
+* **示例**
+
+```php
+<?php
+use Swoole\Server;
+$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
+$server->on('packet', function (Server $server, mixed $data, array $clientInfo) {
+    echo $data . PHP_EOL;
+});
+
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+  echo $data . PHP_EOL;
+});
+$server->start();
+```
+
+
+
 ## request
-?> **接收到`HTTP`数据时触发此函数，在`worker`进程触发该事件。**
+- 接收到`HTTP`数据时触发此函数，在`worker`进程触发该事件。
+
+```php
+function (Swoole\Http\Request $request, Swoole\Http\Reponse $response) {}
+```
+
+* **参数**
+
+  * **`Swoole\Http\Request $request`**
+    * **功能**：`HTTP` 请求对象，保存了 `HTTP` 客户端请求的相关信息，包括 `GET`、`POST`、`COOKIE`、`Header` 等。
+    * **默认值**：无
+    * **其它值**：无
+
+  * **`Swoole\Http\Reponse $response`**
+    * **功能**：`HTTP` 响应对象，通过调用此对象的函数，实现 `HTTP` 响应发送。
+    * **默认值**：无
+    * **其它值**：无
+
+
+---
+
+* **示例**
+
 ```php
 <?php
 use Swoole\Http\Server;
@@ -930,23 +1071,29 @@ $server->start();
 ```
 
 
----
+## beforeHandshakeResponse
+- 当`WebSocket`客户端与服务器握手前会触发此函数，如果你不需要自定义握手处理过程，但是又想设置一些`http header`信息到响应头，那么就可以调用这个事件。
 
+```php
+function (Swoole\Http\Request $request, Swoole\Http\Response $response) {}
+```
 
 * **参数**
 
   * **`Swoole\Http\Request $request`**
-    * **功能**：`HTTP` 请求对象，保存了 `HTTP` 客户端请求的相关信息，包括 `GET`、`POST`、`COOKIE`、`Header` 等。
+    * **功能**：HTTP请求信息对象，包含客户端请求信息。
     * **默认值**：无
     * **其它值**：无
 
-  * **`Swoole\Http\Reponse $response`**
-    * **功能**：`HTTP` 响应对象，通过调用此对象的方法，实现 `HTTP` 响应发送。
+  * **`Swoole\Http\Response $reponse`**
+    * **功能**：HTTP响应信息对象，可以通过这个对象发送响应给客户端。
     * **默认值**：无
     * **其它值**：无
 
-## beforeHandshakeResponse
-?> **当`WebSocket`客户端与服务器握手前会触发此函数，如果你不需要自定义握手处理过程，但是又想设置一些`http header`信息到响应头，那么就可以调用这个事件。**
+
+---
+
+* **示例**
 
 ```php
 <?php
@@ -969,6 +1116,17 @@ $server->start();
 
 ---
 
+##### 版本要求
+
+- Swoole 版本 >= `v5.0.0`
+
+## handshake
+-- 如果用户希望自己进行`websocket`握手，可以设置`handShake`事件触发函数。
+
+```php
+function (Swoole\Http\Request $request, Swoole\Http\Response $response) {}
+```
+
 * **参数**
 
   * **`Swoole\Http\Request $request`**
@@ -981,8 +1139,10 @@ $server->start();
     * **默认值**：无
     * **其它值**：无
 
-## handshake
-?> **如果用户希望自己进行`websocket`握手，可以设置`handShake`事件触发函数**
+---
+
+* **示例**
+
 ```php
 <?php
 use Swoole\WebSocket\Server;
@@ -1042,31 +1202,39 @@ $server->start();
 
 ---
 
+
+
+> 如果需要自行处理 `handshake` 的时候，再设置这个触发函数。如果不需要自定义握手过程，那么不要设置该触发，使用`Swoole`默认的握手即可。
+
+!> 设置 `handShake` 触发函数后不会再触发`open`事件。
+
+> `handShake` 中必须调用 `Swoole\Http\Response->status()` 设置状态码为 `101` 并调用 `Swoole\Http\Response->end()` 响应，否则会握手失败。
+
+!> 内置的握手协议为 `Sec-WebSocket-Version: 13`，低版本浏览器需要自行实现握手。
+
+## open
+- 当`WebSocket`客户端与服务器建立连接并完成握手后会触发此函数。
+
+```php
+function (Swoole\WebSocket\Server $server,  Request $request) {}
+```
+
 * **参数**
 
-  * **`Swoole\Http\Request $request`**
-    * **功能**：HTTP请求信息对象，包含客户端请求信息。
+  * **`Swoole\WebSocket\Server $server`**
+    * **功能**：`Swoole\WebSocket\Server` 对象。
     * **默认值**：无
     * **其它值**：无
 
-  * **`Swoole\Http\Response $reponse`**
-    * **功能**：HTTP响应信息对象，可以通过这个对象发送响应给客户端。
+  * **`Swoole\Http\Request $request`**
+    * **功能**：HTTP 请求信息。
     * **默认值**：无
     * **其它值**：无
 
 
 ---
 
-!> 如果需要自行处理 `handshake` 的时候，再设置这个触发函数。如果不需要自定义握手过程，那么不要设置该触发，使用`Swoole`默认的握手即可。
-
-!> 设置 `handShake` 触发函数后不会再触发`open`事件。
-
-!> `handShake` 中必须调用 `Swoole\Http\Response->status()` 设置状态码为 `101` 并调用 `Swoole\Http\Response->end()` 响应，否则会握手失败。
-
-!> 内置的握手协议为 `Sec-WebSocket-Version: 13`，低版本浏览器需要自行实现握手。
-
-## open
-?> **当`WebSocket`客户端与服务器建立连接并完成握手后会触发此函数。**
+* **示例**
 
 ```php
 <?php
@@ -1089,42 +1257,18 @@ $server->start();
 ---
 
 
-* **参数**
+> $request 是一个 HTTP 请求对象，包含了客户端发来的握手请求信息，因为`websocket`是先通过http协议执行握手阶段的。
 
-  * **`Swoole\WebSocket\Server $server`**
-    * **功能**：`Swoole\WebSocket\Server` 对象。
-    * **默认值**：无
-    * **其它值**：无
-
-  * **`Swoole\Http\Request $request`**
-    * **功能**：HTTP 请求信息。
-    * **默认值**：无
-    * **其它值**：无
-
-
----
-
-!> $request 是一个 HTTP 请求对象，包含了客户端发来的握手请求信息，因为`websocket`是先通过http协议执行握手阶段的。
-
-!> `open`事件函数中可以调用 push 向客户端发送数据或者调用 close 关闭连接。
+> `open`事件函数中可以调用 `Swoole\Websocket\Server->push()` 向客户端发送数据或者调用 `Swoole\Websocket\Server->close()` 关闭连接。
 
 
 ## message
-?> **接收到`websocket`数据时触发此函数，在`worker`进程触发该事件。**
+- 接收到`websocket`数据时触发此函数，在`worker`进程触发该事件。
+
 ```php
-<?php
-use Swoole\WebSocket\Server;
-use Swoole\WebSocket\Frame;
-$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
-
-$server->on('message', function (Server $server,  Frame $frame) {
-    echo $frame->data . PHP_EOL;
-});
-
-$server->start();
+function (Swoole\WebSocket\Server $server,  Swoole\WebSocket\Frame $frame) {}
 ```
 
----
 
 * **参数**
 
@@ -1138,8 +1282,51 @@ $server->start();
     * **默认值**：无
     * **其它值**：无
 
+---
+
+
+* **示例**
+
+```php
+<?php
+use Swoole\WebSocket\Server;
+use Swoole\WebSocket\Frame;
+$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
+
+$server->on('message', function (Server $server,  Frame $frame) {
+    echo $frame->data . PHP_EOL;
+});
+
+$server->start();
+```
+
+
+
 ## disconnect
-?> **`webSocket`关闭连接时会触发该事件。**
+- `webSocket`关闭连接时会触发该事件。
+
+```php
+function (Swoole\WebSocket\Server $server, int $fd) {}
+```
+
+* **参数**
+
+  * **`Swoole\WebSocket\Server $server`**
+    * **功能**：`Swoole\WebSocket\Server` 对象。
+    * **默认值**：无
+    * **其它值**：无
+
+  * **`int $fd`**
+    * **功能**：已关闭连接的客户端文件描述符（唯一标识）。
+    * **默认值**：无
+    * **其它值**：无
+
+
+---
+
+
+* **示例**
+
 ```php
 use Swoole\WebSocket\Server;
 use Swoole\WebSocket\Frame;
@@ -1156,42 +1343,14 @@ $server->on('disconnect', function (Server $server, int $fd) {
 $server->start();
 ```
 
----
 
-
-* **参数**
-
-  * **`Swoole\WebSocket\Server $server`**
-    * **功能**：`Swoole\WebSocket\Server` 对象。
-    * **默认值**：无
-    * **其它值**：无
-
-  * **`int $fd`**
-    * **功能**：已关闭连接的客户端文件描述符（唯一标识）。
-    * **默认值**：无
-    * **其它值**：无
 
 ## close
-?> **`TCP`客户端连接关闭后，在`Worker`进程中触发此函数。**
+- `TCP`客户端连接关闭后，在`Worker`进程中触发此函数。
 
 ```php
-<?php
-use Swoole\Server;
-$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
-
-$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  echo $data . PHP_EOL;
-});
-
-$server->on('close', function(Server $server, int $fd, int $reactorId) {
-  echo "connection close" . PHP_EOL;
-});
-
-$server->start();
+function(Swoole\Server $server, int $fd, int $reactorId) {
 ```
-
----
-
 
 * **参数**
 
@@ -1212,17 +1371,40 @@ $server->start();
 
 ---
 
-!> 当服务器主动关闭连接时，底层会设置$reactorId参数为 `-1`，可以通过判断 `$reactorId < 0` 来分辨关闭是由服务器端还是客户端发起的。
 
-!> 只有在 `PHP` 代码中主动调用 `Swoole\Server->close()` 方法被视为主动关闭。、
+* **示例**
 
-!> `close` 触发函数如果发生了致命错误，会导致连接泄漏。通过 netstat 命令会看到大量 CLOSE_WAIT 状态的 TCP 连接。 
+```php
+<?php
+use Swoole\Server;
+$server = new Server('127.0.0.1', 9501, SWOOLE_PROCESS);
 
-!> 无论由客户端发起 close 还是服务器端主动调用 `Swoole\Server->close()` 关闭连接，都会触发此事件。因此只要连接关闭，就一定会触发此函数。
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+  echo $data . PHP_EOL;
+});
 
-!>  `close` 中依然可以调用 `Swoole\Server->getClientInfo()` 方法获取到连接信息，在 `close` 触发函数执行完毕后才会调用实际关闭 `TCP` 连接。
+$server->on('close', function(Server $server, int $fd, int $reactorId) {
+  echo "connection close" . PHP_EOL;
+});
 
-!> 这里触发 `close` 时表示客户端连接已经关闭，所以无需在`close`事件中执行 `Swoole\Server->close()`。否则会抛出 PHP 错误警告。
+$server->start();
+```
+
+---
+
+
+
+> 当服务器主动关闭连接时，底层会设置$reactorId参数为 `-1`，可以通过判断 `$reactorId < 0` 来分辨关闭是由服务器端还是客户端发起的。
+
+> 只有在 `PHP` 代码中主动调用 `Swoole\Server->close()` 函数被视为主动关闭。、
+
+> `close` 触发函数如果发生了致命错误，会导致连接泄漏。通过 netstat 命令会看到大量 CLOSE_WAIT 状态的 TCP 连接。 
+
+> 无论由客户端发起 close 还是服务器端主动调用 `Swoole\Server->close()` 关闭连接，都会触发此事件。因此只要连接关闭，就一定会触发此函数。
+
+>  `close` 中依然可以调用 `Swoole\Server->getClientInfo()` 函数获取到连接信息，在 `close` 触发函数执行完毕后才会调用实际关闭 `TCP` 连接。
+
+> 这里触发 `close` 时表示客户端连接已经关闭，所以无需在`close`事件中执行 `Swoole\Server->close()`。否则会抛出 PHP 错误警告。
 
 ## 事件区别
 
@@ -1233,6 +1415,11 @@ $server->start();
 > `disconnect`和`close`两者均用于终止连接，但作用域不同：
 > *   **`disconnect`** ：专门用于关闭 **WebSocket 逻辑连接**（处理握手状态及协议级断开）。
 > *   **`close`** ：用于关闭底层的 **TCP 物理连接**，释放操作系统层面的文件描述符资源。
+
+
+> `workerExit`和`workerStop`两者均在进程退出触发，但作用不同：
+> *   **`workerExit`** ：用于在 `max_wait_time` 规定的时间内执行**柔性关闭**，主动清理并关闭所有事件句柄监听。
+> *   **`workerStop`** ：仅作为**进程停止的通知**，不参与柔性关闭，执行时机在 Worker 进程完全退出之后。
 
 
 ## 面向对象风格

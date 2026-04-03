@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "docsify": "^4.13.1",
-    "docsify-cli": "^4.4.4"
+    "docsify-cli": "^4.4.4",
+    "pnpm": "^10.33.0"
   },
   "scripts": {
     "dev": "cd public && npx docsify start .",
