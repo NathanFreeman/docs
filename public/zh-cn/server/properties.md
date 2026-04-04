@@ -16,7 +16,9 @@ use Swoole\Server;
 $server = new Server('127.0.0.1', 9501);
 $server->set([  'worker_num' => 4  ]);
 $server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  var_dump($server->setting);
+  foreach($server->setting as $setting) {
+    echo "配置：" . $setting . PHP_EOL;
+  }
 });
 
 $server->start();
@@ -34,7 +36,7 @@ use Swoole\Server;
 $server = new Server('127.0.0.1', 9501);
 $server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
   foreach($server->connections as $fd) {  // 遍历当前连接
-    var_dump($fd);
+    echo "当前文件描述符：" . $fd . PHP_EOL;
   }
 });
 
@@ -69,7 +71,7 @@ $server->on('receive', function(Server $server, int $fd, int $reactorId, string 
 use Swoole\Server;
 $server = new Server('127.0.0.1', 9501);
 $server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  var_dump($server->host);  // 输出127.0.0.1
+  echo "监听地址：" . $server->host . PHP_EOL;
 });
 
 $server->start();
@@ -86,7 +88,7 @@ $server->start();
 use Swoole\Server;
 $server = new Server('127.0.0.1', 9501);
 $server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  var_dump($server->port);  // 输出9501
+  echo "监听端口：" . $server->port . PHP_EOL;
 });
 
 $server->start();
@@ -105,7 +107,7 @@ use Swoole\Server;
 // 示例一：TCP 服务
 $server = new Server('127.0.0.1', 9501, SWOOLE_BASE, SWOOLE_TCP);
 $server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  var_dump($server->type);  // SWOOLE_SOCK_TCP
+  echo "服务器类型：" . $server->type . PHP_EOL;
 });
 
 $server->start();
@@ -113,7 +115,7 @@ $server->start();
 // 示例二：UDP 服务
 $server = new Server('127.0.0.1', 9501, , SWOOLE_BASE, SWOOLE_UDP);
 $server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  var_dump($server->type);  // SWOOLE_SOCK_UDP
+  echo "服务器类型：" . $server->type . PHP_EOL;
 });
 
 $server->start();
@@ -150,7 +152,7 @@ use Swoole\Http\Response;
 // 示例：HTTP 服务
 $server = new Server('127.0.0.1', 443, SWOOLE_BASE, SWOOLE_TCP | SWOOLE_SSL);
 $server->on('request', function(Request $request, Response $response) use ($server) {
-  var_dump($server->ssl);  // 输出 true
+  echo "是否开启ssl加密：" . $server->ssl . PHP_EOL;
 });
 
 $server->start();
@@ -171,7 +173,7 @@ use Swoole\Http\Response;
 // 示例：HTTP 服务
 $server = new Server('127.0.0.1', 9501, SWOOLE_BASE);
 $server->on('request', function(Request $request, Response $response) use ($server) {
-  var_dump($server->mode);  // 输出 SWOOLE_BASE
+  echo "服务器模式：" . $server->mode . PHP_EOL;
 });
 
 $server->start();
@@ -199,7 +201,9 @@ $server = new Server("127.0.0.1", 9501); // 主服务器端口
 $port = $server->listen('127.0.0.1', 9502);
 
 $server->on('receive', function ($server, $fd, $reactor_id, $data) {
-  var_dump($server->ports);
+  foreach($server->ports as $port) {
+    echo "监听端口为：" . $port->port . PHP_EOL;
+  }
 });
 $server->start();
 ```
@@ -213,11 +217,13 @@ $server->start();
 ```php
 use Swoole\Server;
 $server = new Server("127.0.0.1", 9501);
-$server->on('start', function ($server){
-    echo $server->master_pid;
+$server->on('start', function (Server $server){
+  echo "master进程id为：" . $server->master_pid . PHP_EOL;
 });
+
 $server->on('receive', function ($server, $fd, $reactor_id, $data) {
 });
+
 $server->start();
 ```
 
@@ -234,8 +240,8 @@ $server->start();
 ```php
 use Swoole\Server;
 $server = new Server("127.0.0.1", 9501);
-$server->on('start', function ($server) {
-    echo $server->manager_pid;
+$server->on('start', function (Server $server) {
+  echo "manager进程id为：" . $server->manager_pid . PHP_EOL;
 });
 
 $server->on('receive', function ($server, $fd, $reactor_id, $data) {
@@ -260,6 +266,7 @@ $server->set([
     'worker_num' => 8,
     'task_worker_num' => 4,
 ]);
+
 $server->on('WorkerStart', function ($server, int $workerId) {
     if ($server->taskworker) {
         echo "task workerId：{$workerId}\n";
@@ -269,10 +276,13 @@ $server->on('WorkerStart', function ($server, int $workerId) {
         echo "worker_id：{$server->worker_id}\n";
     }
 });
+
 $server->on('Receive', function ($server, $fd, $reactor_id, $data) {
 });
+
 $server->on('Task', function ($serv, $task_id, $reactor_id, $data) {
 });
+
 $server->start();
 ```
 
@@ -312,7 +322,7 @@ $server->start();
 
 ### worker_pid
 
-- 得到当前`Worker`进程的`PID`，该属性是一个`int`类型的整数。
+- 得到当前`worker`进程的`PID`，该属性是一个`int`类型的整数。
 
 * **示例**
 
@@ -321,7 +331,7 @@ $server->start();
 use Swoole\Server;
 $server = new Server('127.0.0.1', 9501);
 $server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
-  var_dump($server->worker_pid);
+  echo "worker进程PID为：" . $server->worker_pid . PHP_EOL;
 });
 
 $server->start();

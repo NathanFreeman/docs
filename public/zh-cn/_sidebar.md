@@ -14,8 +14,6 @@
   * [Swoole\Server\Port](server/swoole_server_port.md)
   * [Swoole\Server\StatusInfo](server/swoole_server_status_info.md)
   * [Swoole\Server\Task](server/swoole_server_task.md)
-  * [Swoole\Server\StatusInfo](server/swoole_server_status_info.md)
-  * [Swoole\Server\StatusInfo](server/swoole_server_status_info.md)
 
 * [服务端(协程风格)](server/co_init.md)
   * [TCP服务器](coroutine/server.md)

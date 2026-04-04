@@ -176,7 +176,21 @@ $server->start();
 
 ## 注意
 
-!> `Swoole\Http\Server` 和 `Swoole\WebSocket\Server` 是通过继承 `Swoole\Server` 实现的。因此，如果你创建了一个普通的 `TCP` 服务器，无法通过 `Swoole\Server->listen()` 方法给它添加 `HTTP` 或 `WebSocket` 子端口。 简单说：主服务器是什么类型，决定了它能监听什么类型的子端口。主端口不能升级，只能降级。
+!> `Swoole\Http\Server` 和 `Swoole\WebSocket\Server` 是通过继承 `Swoole\Server` 实现的。因此，如果你创建了一个普通的 `TCP` 服务器，无法通过 `Swoole\Server->listen()` 方法给它添加 `HTTP` 或 `WebSocket` 子端口。 
+
+```php
+// HTTP服务器的request事件
+function (Swoole\Http\Request $request, Swoole\Http\Reponse $response) {}
+
+// Websocket服务器的message事件
+function (Swoole\WebSocket\Server $server,  Swoole\WebSocket\Frame $frame) {}
+```
+
+- 从上述两个函数签名可以看出，如果通过 `Swoole\Server` 在主服务器之外的新端口监听 `WebSocket` 协议，当触发 [message](/server/events?id=message) 事件时，回调函数期望接收一个 `Swoole\WebSocket\Server` 类型的对象。然而，此时的主服务器类型为 `Swoole\Server`，实际传入的却是 `Swoole\Server` 对象，导致参数类型不匹配而报错。
+
+  虽然当前 [request](/server/events?id=request) 事件不需要传入 `$server` 参数，但考虑到未来 API 的扩展性，后续版本可能会为 `Swoole\Http\Server` 引入专属方法，届时同样会出现类似的类型不一致问题。
+
+  因此，**禁止**由父类（`Swoole\Server`）在新端口监听一个子类服务器（如 `Swoole\WebSocket\Server` 或 `Swoole\Http\Server`），推荐改为由子类在新端口监听父类服务器，以确保回调参数类型始终正确。
 
 * **错误示例**
 
@@ -218,7 +232,7 @@ $port2->on('message', function (WebsocketServer $server,  Frame $frame) {
 $server->start();
 ```
 
-* **正确做法（降级方案）**
+* **正确做法**
 
 - 场景：你的主要功能是 `HTTP/WebSocket`，但还想提供一个简单的 TCP 管理接口。
 
@@ -253,8 +267,7 @@ $http->start();
 |------------|-------------------|-------------------------|-------------------|
 | TCP        | ❌ 不行 | ❌ 不行 | ✅ 可以 |
 | HTTP       | ✅ 可以 | ❌ 不行 | ✅ 可以 |
-| WebSocket  | ✅ 可以 | ✅ 可以 | ✅ 可以 |
+| WebSocket  | ❌ 不行 | ✅ 可以 | ✅ 可以 |
 
-> **记忆口诀**：主服务器选最强的（WebSocket > HTTP > TCP），子端口只能降级不能升级。
 
 
