@@ -1,6 +1,18 @@
-# 事件
+# 回调事件
 
-此节将介绍所有的`Swoole`异步服务器的触发事件，每个触发函数都是一个PHP函数，对应一个事件。
+从 [TCP/UDP 服务器](/server/tcp_init)、[HTTP/HTTPS/HTTP2 服务器](/http_server) 和 [WebSocket 服务器](/websocket_server) 章节中，可以看到一些结构相似的代码示例：
+
+```php
+$server->on('receive', function (Server $server, int $fd, int $reactorId, string $data) {
+    $server->send($fd, 'Hello World');
+});
+```
+
+这类通过 [Swoole\Server->on()](/server/methods?id=on) 方法注册的，就是**回调事件**。回调事件在整个异步服务器模型中扮演着核心角色。通过它们，可以定义当客户端发送数据、进程启动或退出、甚至客户端连接建立或关闭时，服务器应该执行哪些逻辑。
+
+以上面的代码为例，可以简单地理解为，**一旦客户端发送数据过来，服务器就会自动触发 receive 事件，并执行与之绑定的函数——也就是向客户端回复一句 Hello World**。 
+
+本节将系统介绍 Swoole 异步服务器所支持的所有事件类型。每个事件都绑定一个 PHP 函数（即事件回调），用于响应对应的事件触发。
 
 ## start
 
@@ -129,6 +141,8 @@ $server->on('receive', function(Server $server, int $fd, int $reactorId, string 
 
 $server->start();
 ```
+
+!> `HTTP`服务器和`WebSocket`服务器不接受`connect`回调。
 
 
 ## beforeShutdown
