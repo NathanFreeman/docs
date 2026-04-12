@@ -176,7 +176,7 @@ $server->start();
 
 ## 注意
 
-!> `Swoole\Http\Server` 和 `Swoole\WebSocket\Server` 是通过继承 `Swoole\Server` 实现的。因此，如果你创建了一个普通的 `TCP` 服务器，无法通过 `Swoole\Server->listen()` 方法给它添加 `HTTP` 或 `WebSocket` 子端口。 
+!> `Swoole\Http\Server` 是通过继承 `Swoole\Server` 实现的，`Swoole\WebSocket\Server` 是通过继承 `Swoole\Http\Server`。因此，如果你创建了一个普通的 `TCP` 服务器，无法通过 `Swoole\Server->listen()` 方法给它添加 `HTTP` 或 `WebSocket` 子端口。 
 
 ```php
 // HTTP服务器的request事件
@@ -267,7 +267,7 @@ $http->start();
 |------------|-------------------|-------------------------|-------------------|
 | TCP        | ❌ 不行 | ❌ 不行 | ✅ 可以 |
 | HTTP       | ✅ 可以 | ❌ 不行 | ✅ 可以 |
-| WebSocket  | ❌ 不行 | ✅ 可以 | ✅ 可以 |
+| WebSocket  | ✅ 可以 | ✅ 可以 | ✅ 可以 |
 
 
 

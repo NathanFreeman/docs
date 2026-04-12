@@ -1,12 +1,1796 @@
 # 配置
 
-[Swoole\Server->set()](/server/methods?id=set) 函数用于设置`Server`运行时的各项参数。本节所有的子页面均为配置数组的元素。
+- [Swoole\Server->set()](/server/methods?id=set) 方法用于设置 `Swoole\Server`、`Swoole\Http\Server`、`Swoole\WebSocket\Server` 和 `Swoole\Redis\Server` 运行时的各项参数。
 
-!> 从 [v4.5.5](/version/log?id=v455) 版本起，底层会检测设置的配置项是否正确，如果设置了不是`Swoole`提供的配置项，则会产生一个Warning。
+- 如果您已经阅读过[多端口监听](/server/port)章节，其中提到的 [Swoole\Server\Port->set()](/server/port) 方法的配置项说明也可以在这里找到。
+
+* **示例**
+
+```php
+<?php
+use Swoole\Server;
+
+$server = new Server('127.0.0.1', 9501);
+$server->set([
+    'worker_num' => 4
+]);
+
+$server->on('receive', function (Server $server, int $fd, int $reactorId, string $data) {
+    $server->send($fd, 'Hello World');
+});
+$server->start();
+```
+
+> 自 [v4.5.5](/version/log?id=v455) 版本起，底层会检测配置项的有效性。如果设置了 Swoole 不支持的配置项，将产生一个警告提示。
 
 ```shell
-PHP Warning:  unsupported option [foo] in @swoole-src/library/core/Server/Helper.php 
+PHP Warning:  unsupported option [foo] in @swoole-src/library/core/Server/Helper.php
 ```
+
+### worker_num
+- 设置启动的`Worker`进程数。默认值为`CPU`核数。
+
+- `worker` 进程负责处理实际的业务逻辑。合理设置该值直接影响服务器的处理能力。
+
+---
+
+* **示例：**
+
+```php
+$server->set(['worker_num' => 4]); 
+```
+
+---
+
+* **注意**
+
+  * 如果`1`个请求耗时`100ms`，要提供`1000QPS`的处理能力，那必须配置`100`个进程或更多，但开的进程越多，占用的内存就会大大增加，而且进程间切换的开销就会越来越大。所以这里适当即可。不要配置过大。
+  * 如果业务代码为[异步IO](/learn?id=同步io异步io)的，这里设置为`CPU`核数最合理。
+  * 如果业务代码为[同步IO](/learn?id=同步io异步io)，需要根据请求响应时间和系统负载来调整，例如：`CPU`核数 * （2 - 4）倍甚至更大。
+  * 默认设置为服务器的 `CPU` 核数，最大不得超过为服务器的 `CPU` 核数 * 1000。
+  * 假设每个进程占用`40M`内存，`100`个进程就需要占用`4G`内存。
+  * 如果是[SWOOLE_THREAD](/learn?id=swoole_thread)模式，该参数则代表创建的线程数量。
+
+
+### reactor_num
+- 设置启动的 [Reactor](/learn?id=reactor线程) 线程数。默认值为 `CPU` 核数。该配置仅适用于 [SWOOLE_PROCESS](/learn?id=swoole_process) 模式。
+
+- `reactor` 线程负责接收客户端连接和网络请求，是 `Swoole` 的"网络事件监听器"。每个 `reactor` 线程都独立维持一个 [EventLoop](/learn?id=什么是eventloop)，线程之间无锁运行，可以在 128 核 CPU 上并行执行，然后将接收到的请求数据转发给 `worker` 进程处理。
+
+---
+
+* **示例：**
+
+```php
+$server->set(['reactor_num' => 4]); 
+```
+
+---
+
+* **注意**
+
+  * `reactor_num`建议设置为`CPU`核数的`1-4`倍。
+  * `reactor_num`最大不得超过 `CPU`核数 * `4`。
+  * `reactor_num`必须小于或等于`worker_num`，如果设置的`reactor_num`大于`worker_num`，会自动调整使`reactor_num`等于`worker_num`。
+  * `reactor_num`在超过`8`核的机器上默认设置为`8`。
+
+
+### task_worker_num
+- 配置 [task进程](/server/process_thread?id=task) 将启用耗时任务投递功能，此时必须同时注册 `[task](/server/events?id=task)` 和 `[finish](/server/events?id=finish)` 两个事件回调函数，否则服务器程序无法启动。
+
+---
+
+* **示例：**
+
+```php
+$server->set(['task_worker_num' => 4]); 
+```
+
+---
+
+* **注意**
+
+  * `task`进程数最大不得超过为服务器的 `CPU` 核数 * 1000。
+  * 假设单个`task`进程的处理耗时为`100ms`，那一个进程1秒就可以处理`1/0.1=10`个任务。
+  * `task`进程内不能使用`Swoole\Server->task()`方法
+
+### enable_coroutine
+
+- 控制是否在[事件回调](/server/events)中自动创建协程来执行业务逻辑，默认值为 `true`。
+
+---
+
+* **示例：**
+
+```php
+$server->set(['enable_coroutine' => true]); 
+```
+
+---
+
+* **配置方式**
+
+  * 在 `php.ini` 中设置 `swoole.enable_coroutine = 'Off'`（详见 [ini配置文档](/other/config.md)）
+  * 通过 `$server->set(['enable_coroutine' => false]);` 设置的优先级高于 `php.ini`
+
+---
+
+* **注意**
+
+  * 当 `enable_coroutine = true` 时，底层会在 `request` 等回调中自动创建协程。
+  * 当 `enable_coroutine = false` 时，底层不会自动创建协程。如果业务中不需要使用协程，关闭该选项可提升一定性能。如需使用协程，需自行通过 `go()` 创建；若不需要协程特性，行为与 Swoole 1.x 完全一致。
+  * 开启该选项仅表示会通过协程方式处理请求。如果回调中包含了阻塞操作（如 `sleep`、`mysqlnd` 扩展等），还需额外配置 `hook_flags` 以实现阻塞函数和扩展的协程化。
+
+---
+
+* **受 `enable_coroutine` 影响的事件回调有**
+
+  * [workerStart](/server/events?id=workerStart)
+  * [connect](/server/events?id=connect)
+  * [open](/server/events?id=open)
+  * [receive](/server/events?id=receive)
+  * [setHandler](/redis_server?id=sethandler)
+  * [packet](/server/events?id=packet)
+  * [request](/server/events?id=request)
+  * [message](/server/events?id=message)
+  * [pipeMessage](/server/events?id=pipeMessage)
+  * [finish](/server/events?id=finish)
+  * [close](/server/events?id=close)
+
+### task_enable_coroutine
+
+- 开启[task进程](/server/process_thread?id=task)协程化。开启后自动在[task事件回调](/server/events?id=task)创建协程和[协程容器](/coroutine/scheduler)，可以直接使用协程`API`。
+
+---
+
+* **示例：**
+
+```php
+$server->set([
+  'enable_coroutine' => true
+  'task_enable_coroutine' => true
+]); 
+```
+
+--- 
+
+* **注意**
+
+  * `task_enable_coroutine`必须在[enable_coroutine](/server/setting?id=enable_coroutine)为`true`时才可以使用
+  * 自 `Swoole 4.2.12` 版本起支持该选项。
+
+
+### hook_flags
+
+- 用于设置哪些阻塞函数或扩展需要被替换为协程版本，以实现异步非阻塞的协程调度。默认不替换任何阻塞函数或者扩展。
+
+---
+
+* **示例：**
+
+```php
+$server->set([
+    'hook_flags' => SWOOLE_HOOK_SLEEP | SWOOLE_HOOK_NATIVE_CURL,
+]);
+```
+
+---
+
+
+* **支持的协程化选项：**
+
+可使用 `SWOOLE_HOOK_ALL` 一键开启全部协程化项，也可按需组合使用以下常量：
+
+| 常量名                             | 说明                                                         |
+|---------------------------------|------------------------------------------------------------|
+| `SWOOLE_HOOK_TCP`               | TCP 操作（如 `stream_socket_client`）                           |
+| `SWOOLE_HOOK_UNIX`              | Unix Socket 操作                                             |
+| `SWOOLE_HOOK_UDP`               | UDP 操作                                                     |
+| `SWOOLE_HOOK_UDG`               | Unix 数据报套接字                                                |
+| `SWOOLE_HOOK_SSL`               | SSL 封装层                                                    |
+| `SWOOLE_HOOK_TLS`               | TLS 封装层                                                    |
+| `SWOOLE_HOOK_SLEEP`             | `sleep`、`usleep`、`time_nanosleep`、`time_sleep_until` 等睡眠函数 |
+| `SWOOLE_HOOK_FILE`              | 文件操作（如 `fread`、`fwrite`、`file_get_contents` 等）             |
+| `SWOOLE_HOOK_STREAM_FUNCTION`   | 流函数（如 `stream_select`、`stream_set_blocking`）               |
+| `SWOOLE_HOOK_BLOCKING_FUNCTION` | 各类阻塞函数（如 `gethostbyname`、`exec`、`shell_exec` 等）            |
+| `SWOOLE_HOOK_PROC`              | 进程操作（如 `proc_open`）                                        |
+| `SWOOLE_HOOK_CURL`              | CURL 协程化（基础版）                                              |
+| `SWOOLE_HOOK_NATIVE_CURL`       | CURL 原生协程化（更完整、推荐）                                         |
+| `SWOOLE_HOOK_SOCKETS`           | sockets 扩展相关函数                                             |
+| `SWOOLE_HOOK_STDIO`             | 标准输入输出（如 `stdin`、`stdout`、`stderr`）                        |
+| `SWOOLE_HOOK_PDO_PGSQL`         | PDO PostgreSQL 驱动协程化                                       |
+| `SWOOLE_HOOK_PDO_ODBC`          | PDO ODBC 驱动协程化                                             |
+| `SWOOLE_HOOK_PDO_ORACLE`        | PDO Oracle 驱动协程化                                           |
+| `SWOOLE_HOOK_PDO_SQLITE`        | PDO SQLite 驱动协程化                                           |
+| `SWOOLE_HOOK_ALL`               | 开启以上所有协程化项                                                 |
+
+!> Swoole版本为 `v4.5+` 或 [4.4LTS](https://github.com/swoole/swoole-src/tree/v4.4.x) 可用，详情参考[一键协程化](/runtime)
+
+### enable_reuse_port
+
+- 设置端口复用，启用后，支持多个进程或服务同时监听同一个端口（需内核支持）。默认值：`false`。
+
+---
+
+* **示例：**
+
+```php
+$server->set([
+    'enable_reuse_port' => true,
+]);
+```
+
+
+!> 仅在`Linux-3.9.0`以上版本的内核可用 `Swoole4.5`以上版本可用
+
+
+### max_request
+
+- 设置 [worker进程](/server/process_thread?id=worker) 可以执行的最大任务数。当 worker 进程处理的任务数达到该值时，进程会自动重启，以释放占用的内存和资源。默认值为`0`，表示不设限制，进程不会退出。
+
+---
+
+* **示例：**
+
+```php
+$server->set([
+    'max_request' => 10000,
+]);
+```
+
+---
+
+* **注意**
+
+  * 达到`max_request`不一定马上关闭进程，参考[max_wait_time](/server/setting?id=max_wait_time)。
+  * [SWOOLE_BASE](/server/process_thread?id=swoole_base)下，达到`max_request`后重启进程会导致客户端连接断开。
+  * 这个参数的主要作用是解决由于程序编码不规范导致的PHP进程内存泄露问题。PHP应用程序有缓慢的内存泄漏，但无法定位到具体原因、无法解决，可以通过设置`max_request`临时解决，需要找到内存泄漏的代码并修复，而不是通过此方案，可以使用Swoole Tracker发现泄漏的代码。
+
+
+### task_max_request
+
+- 设置 [task进程](/server/process_thread?id=task) 可以执行的最大任务数。当 task 进程处理的任务数达到该值时，进程会自动重启，以释放占用的内存和资源。默认值为`0`，表示不设限制，进程不会退出。
+
+---
+
+* **示例：**
+
+```php
+$server->set([
+    'task_max_request' => 10000,
+]);
+```
+
+### max_connection / max_conn
+
+- 设置服务器的最大连接数。当服务器已建立的连接数达到该值时，新进入的连接将被拒绝。默认值为 `ulimit -n`（系统当前用户最大打开文件数）。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'max_connection' => 10000
+]);
+```
+
+---
+
+* **注意**
+
+  * 如果应用层未显式设置 `max_connection`，底层将自动使用 `ulimit -n` 的值作为默认值。
+  * `max_connection` 的值不能超过操作系统的 `ulimit -n` 值。若设置过大，底层会发出警告并自动将配置重置为 `ulimit -n` 的值。
+  * 在 `Swoole 4.2.9` 及以上版本中，当检测到 `ulimit -n` 设置过大（如 `100 万`）时，底层会将默认值调整为 `100000`。这是因为过大的 `ulimit -n` 需要分配大量内存用于连接信息存储，可能导致进程启动失败。
+  * 若设置的值过小，底层也会发出警告，并将其调整为 `ulimit -n` 的值。配置的最小有效值为 `(worker_num + task_worker_num) * 2 + 32`。
+  * `max_connection` 不应盲目调大，应根据服务器实际可用内存合理设置。Swoole 会按照该数值预先分配一块内存用于保存连接信息，每个 TCP 连接约占用 `224` 字节。
+
+### max_coroutine / max_coro_num
+
+- 设置当前工作进程最大协程数量。默认值：`100000`，Swoole版本小于`v4.4.0-beta` 时默认值为`3000`。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'max_coroutine' => 10000
+]);
+```
+
+---
+
+* **注意**
+  * 超过`max_coroutine`底层将无法创建新的协程，底层会抛出`exceed max number of coroutine`错误，`TCP Server`会直接关闭连接，`Http Server`会返回Http的503状态码。
+  * 在服务器程序中实际最大可创建协程数量等于 `worker_num * max_coroutine`，[task进程](/server/process_thread?id=task)和[user进程](/server/process_thread?id=user)的协程数量单独计算。
+
+### max_concurrency
+- 限制`HTTP`，`HTTP2`服务器最大并发请求数量，超过该值之后，以后的请求会返回`503`错误，默认值为`4294967295`，即为无符号 `int` 的最大值。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'max_concurrency' => 10000
+]);
+```
+
+### worker_max_concurrency
+
+- 开启一键协程化之后，`worker` 进程会源源不断的接受请求，为了避免压力过大，我们可以设置 `worker_max_concurrency` 限制 `worker` 进程的请求执行数。
+
+- 当请求数超过该值时，`worker` 进程会将多余的请求暂存于队列，默认值为 `4294967295`，即为无符号 `int` 的最大值。
+
+- 如果没有设置 `worker_max_concurrency`，但是设置了 `max_concurrency` 的话，底层会自动设置 `worker_max_concurrency` 等于 `max_concurrency`。
+
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'worker_max_concurrency' => 10000
+]);
+```
+
+---
+
+* **说明**
+  * 如果进程重启时队列中仍有未处理的请求，底层会遍历整个队列，并向其中的每个请求逐一返回 `503 Service Unavailable`。
+  * 可以这样理解：`worker_max_concurrency` 限制的是**单个进程**的并发处理能力，而 `max_concurrency` 限制的是**整个服务器**的总并发处理能力，即所有进程正在处理的请求总数不能超过该值。
+
+!> Swoole版本 >= `5.0.0` 可用。
+
+### max_idle_time
+
+- 该配置用于设置服务器 `TCP` 连接的读写超时阈值。当服务器连接在读写操作时间时候超过`max_idle_time`，底层将主动关闭该连接。默认值为：`0`，表示不进行超时检查。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'max_idle_time' => 10
+]);
+```
+
+---
+
+* **注意**
+  * 新连接加入事件循环后，若在 `max_idle_time` 时间内未发送任何数据，底层将关闭该连接。
+  * 读取客户端发送的数据过程中，若从开始读取到完成的耗时超过 `max_idle_time`尚未完成，底层将关闭该连接。
+  * 写入数据发送给客户端过程中，若写入操作的耗时超过 `max_idle_time` 尚未完成，底层将关闭该连接。
+
+### heartbeat_idle_time
+- 客户端`TCP`连接最大允许空闲的时间，单位为秒。表示一个客户端连接如果`heartbeat_idle_time`秒内未向服务器发送任何数据，此连接将被强制关闭。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'heartbeat_idle_time' => 3,         // 表示一个连接如果3秒内未向服务器发送任何数据，此连接将被强制关闭
+  'heartbeat_check_interval' => 60,   // 表示每60秒遍历一次
+]);
+```
+
+* **注意**
+  * 启用 `heartbeat_idle_time` 后，服务器并不会主动向客户端发送数据包。
+  * 如果只设置了 `heartbeat_idle_time` 未设置 `heartbeat_check_interval` 底层将不会创建心跳检测线程。
+  * 如果没有设置`heartbeat_idle_time`，只设置了`heartbeat_check_interval`，那么`heartbeat_idle_time`会设置为`heartbeat_check_interval`的两倍。
+
+
+### heartbeat_check_interval
+- 每个多少秒发一次`TCP`连接心跳检测，默认值为：0，表示不开启心跳检测。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'heartbeat_idle_time' => 3,         // 表示一个连接如果3秒内未向服务器发送任何数据，此连接将被强制关闭
+  'heartbeat_check_interval' => 60,   // 表示每60秒遍历一次
+]);
+```
+---
+
+* **注意**
+  * 服务端并不会主动向客户端发送心跳包，而是被动等待客户端发送心跳。服务器端的 `heartbeat_check` 仅仅是检测连接上一次发送数据的时间，如果超过限制，将切断连接。
+  
+  * 此选项表示每隔多久轮循一次，单位为秒。如 heartbeat_check_interval => 60，表示每 60 秒，遍历所有连接，如果该连接在 `heartbeat_idle_time` 秒内没有向服务器发送任何数据，此连接将被强制关闭。
+  
+  * 若未配置，则不会启用心跳，该配置默认关闭。
+  
+  * 被心跳检测切断的连接依然会触发[close事件回调](/server/events?id=close)。
+
+### package_max_length
+
+- 设置能接收的最大数据包尺寸，单位为字节。默认值：`2M` 即 `2 * 1024 * 1024`，最小值为`64K`。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'package_max_length' => 2 * 1024 * 1024
+]);
+```
+
+---
+
+* **注意**
+
+  * 此参数不宜设置过大，否则会占用很大的内存。
+  
+  * 开启[open_length_check](/server/setting?id=open_length_check)/[open_eof_check](/server/setting?id=open_eof_check)/[open_eof_split](/server/setting?id=open_eof_split)/[open_http_protocol](/server/setting?id=open_http_protocol)/[open_http2_protocol](/http_server?id=open_http2_protocol)/[open_websocket_protocol](/server/setting?id=open_websocket_protocol)/[open_mqtt_protocol](/server/setting?id=open_mqtt_protocol)等协议解析后，Swoole 底层会进行数据包拼接。在完整接收一个数据包之前，所有数据均保存在内存中。因此必须设置 `package_max_length` 来限制单个数据包的最大内存占用。例如，若有 1 万个 TCP 连接同时发送数据，每个数据包大小为 `2M`，在极端情况下内存占用将达到 `20G`。
+  
+  * `open_length_check`：当发现包长度超过`package_max_length`，将直接丢弃此数据，并关闭连接，不会占用任何内存。
+  
+  * `open_eof_check`：因为无法事先得知数据包长度，所以收到的数据还是会保存到内存中，持续增长。当发现内存占用已超过`package_max_length`时，将直接丢弃此数据，并关闭连接。
+  
+  * `open_http_protocol`：`GET`请求最大允许`8K`，而且无法修改配置。`POST`请求会检测`Content-Length`，如果`Content-Length`超过`package_max_length`，将直接丢弃此数据，发送`http 400`错误，并关闭连接。
+
+
+### open_length_check
+- 启用数据包长度检测协议解析功能。默认值为：`false`。参考 [TCP 数据包边界问题](/learn?id=tcp数据包边界问题)。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'open_length_check' => true
+]);
+```
+
+---
+
+* **注意**
+  * 开启后，服务器底层会自动根据你设定的规则，可以保证[reactor线程](/server/process_thread?id=master) 或者 [worker进程](/server/process_thread?id=worker) 每次都会收到一个完整的数据包。
+
+### package_length_type
+- 指定长度字段的类型（如 'N' 表示 4 字节无符号长整型）。与 `PHP` 的 `pack` 函数一样。告诉服务器：长度字段占几个字节，以及这些字节的排列顺序（字节序）。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'package_length_type' => 'N'
+]);
+```
+
+---
+
+* **注意**
+  * 
+
+- 目前 Swoole 支持 10 种长度字段类型：
+
+| 字符参数 | 作用                 |
+|------|--------------------|
+| c    | 有符号、1字节            |
+| C    | 无符号、1字节            |
+| s    | 有符号、主机字节序、2字节      |
+| S    | 无符号、主机字节序、2字节      |
+| n    | 无符号、网络字节序、2字节      |
+| N    | 无符号、网络字节序、4字节      |
+| l    | 有符号、主机字节序、4字节（小写L） |
+| L    | 无符号、主机字节序、4字节（大写L） |
+| v    | 无符号、小端字节序、2字节      |
+| V    | 无符号、小端字节序、4字节      |
+
+### package_length_offset
+
+- 定位长度字段位置的核心参数。它告诉服务器：“长度字段这个值，存放在整个数据包的第几个字节”。
+
+- 因为有些协议设计不一定总是把长度字段放在数据包的最开头。可能包头还有其他固定信息。长度字段可能偏移几个字节后才出现。
+
+---
+
+* **示例**
+
+- 假设你的协议格式如下：
+
+```text
+[ magic: 2字节 ] [ command: 2字节 ] [ length: 4字节 ] [ body: N字节 ]
+字节0-1           字节2-3           字节4-7         字节8开始
+```
+
+- 长度字段 length 位于字节 4、5、6、7（共4字节），那么配置就是：
+
+```php
+$server->set([
+    'open_length_check'     => true,
+    'package_length_type'   => 'N',      // 4字节无符号长整型
+    'package_length_offset' => 4,        // 长度字段从第4字节开始 
+    'package_body_offset'   => 8,        // 包体从第8字节开始（跳过整个包头）
+    'package_max_length'    => 81920,
+]);
+```
+
+* **注意**
+  * 偏移量一定是从`0`开始的。
+
+### package_body_offset / package_body_start
+
+- 定位包体数据起始位置的偏移量。告诉服务器：真正的业务数据（包体）从数据包的第几个字节开始。
+
+---
+
+* **示例1：**
+
+- 假设你的协议格式如下：
+
+```text
+[ magic: 2字节 ] [ command: 2字节 ] [ length: 4字节 ] [ body: N字节 ]
+字节0-1           字节2-3           字节4-7         字节8开始
+```
+
+- body从第8个字节开始，那么配置就是：
+
+```php
+$server->set([
+    'open_length_check'     => true,
+    'package_length_type'   => 'N',      // 4字节无符号长整型
+    'package_length_offset' => 4,        // 长度字段从第4字节开始 
+    'package_body_offset'   => 8,        // 包体从第8字节开始（跳过整个包头）
+    'package_max_length'    => 81920,
+]);
+```
+
+---
+
+* **示例2：**
+
+- 假设你的协议格式如下：
+
+```text
+[ magic: 2字节 ] [ command: 2字节 ] [ length: 4字节 ] [ type: 4字节 ] [ body: N字节 ]
+字节0-1           字节2-3           字节4-7            字节8-11       字节12开始
+```
+
+- body从第12个字节开始，那么配置就是：
+
+```php
+$server->set([
+    'open_length_check'     => true,
+    'package_length_type'   => 'N',      // 4字节无符号长整型
+    'package_length_offset' => 4,        // 长度字段从第4字节开始 
+    'package_body_offset'   => 12,        // 包体从第12字节开始（跳过整个包头）
+    'package_max_length'    => 81920,
+]);
+```
+
+---
+
+* **注意**
+  * 偏移量一定是从`0`开始的。
+
+### package_length_func
+
+- 自定义一个 `PHP` 函数来告诉 `Swoole`一个完整数据包究竟有多长。
+
+- 这个函数会接收当前接收到的部分数据（存储在一个缓冲区中），然后你需要在这个函数里实现你的核心逻辑：解析并返回整个数据包的长度。
+
+---
+
+```php
+function(string $data): int {}
+```
+
+* **参数**
+
+  * **`string $data`**
+    * **功能**：当前接收到的部分数据
+    * **默认值**：无
+    * **其它值**：无
+
+* **返回值**
+
+  *  返回 `0`：数据不足，需等待并接收更多数据。
+  *  返回 `-1`：数据错误，底层将自动关闭连接。
+  *  返回 `>0`：成功获取包长（该值即完整数据包的长度）。
+
+
+---
+
+* **示例**
+
+- 下面这个例子模拟了一个简单文本协议，其中数据包的格式为 "LENGTH:xxx\nBODY:yyy"，你需要从数据中解析出 xxx 作为长度。
+
+```php
+$server->set([
+    'open_length_check'   => true,          // 1. 必须开启
+    'package_max_length'  => 81920,         // 2. 设置最大包长限制
+    'package_length_func' => function ($data) {
+        // 3. 定义你的解析逻辑
+        // 检查是否已经接收到足够的数据，以便解析出长度值
+        if (strlen($data) < 16) {
+            return 0; // 数据不够，返回0，继续等待更多数据
+        }
+
+        // 假设协议是 "LENGTH:123\n"，用正则从收到的数据开头提取长度
+        if (preg_match('/^LENGTH:(\d+)\\\n/', $data, $match)) {
+            $length = (int)$match[1];
+            
+            // 获取整个包头的长度，以便计算完整包长
+            $header_length = strlen($match[0]);
+            
+            // 返回整个数据包的总长度 = 包头长度 + 包体长度
+            return $header_length + $length;
+        }
+
+        // 如果连包头都不符合协议规范，返回 -1，让 Swoole 关闭这个连接
+        return -1;
+    }
+]);
+```
+
+---
+
+* **注意**
+  * `package_length_func`主要用来处理那些"无法用一个固定偏移量就读取到长度"的复杂协议。
+  * 请勿在长度解析函数中执行阻塞 IO 操作，可能导致所有 [reactor线程](/server/process_thread?id=master) 或者 [worker进程](/server/process_thread?id=worker)发生阻塞。
+  * 由于 `ZendVM` 不支持运行在多线程环境，因此底层会自动使用 `Mutex` 互斥锁对 `PHP` 长度函数进行加锁，避免并发执行 `PHP` 函数。
+
+!> Swoole版本 >= 1.9.3 可用
+
+### upload_max_filesize
+- 设置 `HTTP`，`HTTP2` 服务器允许上传的文件大小上限。防止大文件上传耗尽服务器内存，提升服务稳定性。
+
+---
+
+* **示例**
+
+```php
+<?php
+use Swoole\Http\Server;
+$http = new Server('127.0.0.1', 9501);
+$http->set([
+  'package_max_length' => 2 * 1024 * 1024,
+  'upload_max_filesize' => 4 * 1024 * 1024
+]);
+```
+
+---
+
+* **注意**
+  * `upload_max_filesize` 用于允许 `HTTP` 服务器接收大文件。当接收到的请求报文大小超过 `package_max_length` 但未超过 `upload_max_filesize` 时，服务器不会丢弃数据，而是将请求体内容写入磁盘临时文件，不在内存中保留副本。后续处理时再从文件中读取数据，从而避免内存溢出。
+
+  * 必须配合 `package_max_length` 和 `php` 的 `memory_limit` 使用（两者是硬性上限）。
+
+!> `Swoole 5.0.0` 以上可以使用。
+
+### aio_core_worker_num
+
+- 设置异步线程池最小线程数，默认为 `CPU` 核数。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'aio_core_worker_num' => 10
+]);
+```
+
+### aio_worker_num
+
+- 设置异步线程池最大线程数，默认为 `CPU` 核数 * 8。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'aio_worker_num' => 80
+]);
+```
+
+### aio_max_wait_time
+
+
+- 设置任务最大等待时间，单位为秒。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'aio_max_wait_time' => 80
+]);
+```
+
+---
+
+* **注意**
+  * 如果每个线程都有任务在处理，但是队列积压的任务的等待时间已经超过了`aio_max_wait_time`，底层会扩容出新的线程来处理任务。
+  * 扩容的新线程 + 现有线程数不会超过`aio_worker_num`。
+
+### aio_max_idle_time
+
+
+- 设置异步线程池线程的空闲时间，单位为秒，超过该时间没有接收到任务的线程将会被回收。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'aio_max_idle_time' => 10
+]);
+```
+
+---
+
+
+* **注意**
+  * 在底层回收空闲线程时，底层会保证线程数不会少于`aio_core_worker_num`。
+
+### iouring_entries
+
+- 设置 `io_uring` 的队列大小时，默认值为 8192。若传入的值不是 2 的幂次方，内核会将其调整为**大于该值且最接近的 2 的幂次方数**。
+
+---
+
+* **示例**
+
+```php
+<?php
+$server->set([
+  'iouring_entries' => 8192
+]);
+```
+
+---
+
+* **注意**
+  * 如果传入的值过大，内核会抛出异常并且终止程序。
+  * 当系统安装了`liburing`和编译`Swoole`开启了`--enable-iouring`之后才能使用。
+
+!> `Swoole 6.0`以上可以使用。
+
+### iouring_workers
+
+- 设置 `io_uring` 的工作线程数，默认值是 `CPU 核数 * 4`。
+
+---
+
+* **示例**
+
+```php
+<?php
+$server->set([
+  'iouring_workers' => 128
+]);
+```
+
+---
+
+* **注意**
+  * 如果传入的值过大，内核会抛出异常并且终止程序。
+  * 当系统安装了`liburing`和编译`Swoole`开启了`--enable-iouring`之后才能使用。
+
+!> `Swoole 6.0`以上可以使用。
+
+### iouring_flag
+
+- 设置`io_uring`的工作模式，默认值为`SWOOLE_IOURING_DEFAULT`。
+
+---
+
+* **示例**
+
+```php
+<?php
+$server->set([
+  'iouring_flag' => SWOOLE_IOURING_DEFAULT
+]);
+```
+
+---
+
+* **注意**
+
+  * 如果传入的模式不正确，内核会统一使用`SWOOLE_IOURING_DEFAULT`中断驱动模式。
+  * `SWOOLE_IOURING_DEFAULT`，中断驱动模式，可通过系统调用`io_uring_enter`提交`I/O`请求，然后直接检查完成队列状态判断是否完成。
+  * `SWOOLE_IOURING_SQPOLL`，内核轮询模式，内核会创建内核线程用于提交和收割`I/O`请求，几乎完全消除用户态内核态上下文切换，性能较好。
+
+!> `Swoole 6.0`以上可以使用。
+
+### reload_async
+
+- 设置异步柔性重启开关。默认值：`true`
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'reload_async' => true
+]);
+```
+
+
+---
+
+* **注意**
+
+  * 将启用异步安全重启特性，[worker进程](/server/process_thread?id=worker)会等待异步事件完成后再退出。详细信息请参见 [如何正确的重启服务](/question/use?id=swoole如何正确的重启服务)
+  * `reload_async` 开启的主要目的是为了保证服务重载时，协程或异步任务能正常结束。
+  * 在`4.x`版本中开启 [enable_coroutine](/server/setting?id=enable_coroutine)时，底层会额外增加一个协程数量的检测，当前无任何协程时进程才会退出，开启时即使`reload_async => false`也会强制打开`reload_async`。
+
+
+### bootstrap
+
+- 多线程模式下的程序入口文件，默认是当前执行的脚本文件名。
+
+---
+
+* **示例**
+
+```php
+<?php
+use Swoole\Server;
+$server = new Server('127.0.0.1', 9501, SWOOLE_THREAD);
+$server->set([
+    'worker_num' => 4
+    'bootstrap' => __FILE__,
+]);
+```
+
+---
+
+* **注意**
+
+  * 在[SWOOLE_THREAD](/server/process_thread?id=swoole_thread)模式下，由于 `PHP ZTS（Zend Thread Safe）`模式下的线程是相互隔离的，无法像进程那样通过 `fork()` 直接复制一份独立的内存数据。因此，每个线程都需要重新执行当前脚本文件来初始化自身环境。
+
+!> Swoole版本 >= `v6.0` ， `PHP`为`ZTS`模式，编译`Swoole`时开启了`--enable-swoole-thread`可用
+
+### init_arguments
+- 用于设置多线程模式下的共享数据。该配置项需要传入一个回调函数，在服务器启动时会自动执行该函数，其返回值可作为线程间共享的数据对象。。
+
+---
+
+* **示例**
+
+```php
+<?php
+use Swoole\Server;
+use Swoole\Thread\Map;
+
+$server = new Server('127.0.0.1', 9501, SWOOLE_THREAD);
+$server->set([
+    'init_arguments' => function() {return new Map();}
+    'bootstrap' => __FILE__,
+]);
+
+$server->on('receive', function(Server $server, int $fd, int $reactorId, string $data) {
+    $map = Swoole\Thread::getArguments(); // 这里会返回执行回调函数 function() {return new Map();} 的返回值
+});
+```
+
+---
+
+* **注意**
+  * Swoole内置了许多线程安全容器，[并发Map](/thread/map)，[并发List](/thread/arraylist)，[并发队列](/thread/queue)。
+  * 请确保回调函数返回的是线程安全的变量，不要返回非线程安全的普通变量。
+
+!> Swoole版本 >= `v6.0` ， `PHP`为`ZTS`模式，编译`Swoole`时开启了`--enable-swoole-thread`可用
+
+
+### single_thread
+
+- 设置[master进程](/server/process_thread?id=master)中的`reactor`线程数为1。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+    'single_thread' => true
+]);
+```
+
+---
+
+* **注意**
+  * 在 `PHP ZTS` 下，如果使用 [SWOOLE_PROCESS 模式](/server/process_thread?id=swoole_process)，一定要设置该值为 `true`。
+
+### max_wait_time
+
+- 设置 [worker进程](/server/process_thread?id=worker)收到停止服务通知后最大等待时间，默认值：`3`，超过该时间进程还没退出，该进程会被强制杀死。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'max_wait_time' => 30
+]);
+```
+
+---
+
+* **注意**
+
+  * 经常会碰到由于`worker`阻塞卡顿导致`worker`无法正常`重启`, 无法满足一些生产场景，例如发布代码热更新需要`reload`进程。所以，Swoole 加入了进程重启超时时间的选项。详细信息请参见 [如何正确的重启服务](/question/use?id=swoole如何正确的重启服务)。
+  * **管理进程收到重启、关闭信号后或者达到`max_request`时，管理进程会重起该`worker`进程。分以下几个步骤：**
+
+    * 底层会增加一个(`max_wait_time`)秒的定时器，触发定时器后，检查进程是否依然存在，如果是，会强制杀掉，重新拉一个进程。
+    * 需要在`onWorkerStop`回调里面做收尾工作，需要在`max_wait_time`秒内完成收尾。
+    * 依次向目标进程发送`SIGTERM`信号，杀掉进程。
+
+### ssl_cert_file / ssl_key_file
+
+- 设置SSL隧道加密。
+
+---
+
+* **示例**
+
+```php
+use Swoole\Server;
+$server = new Server('127.0.0.1', 9501, SWOOLE_BASE, SWOOLE_TCP | SWOOLE_SSL);
+$server->set(array(
+  'ssl_cert_file' => __DIR__.'/config/ssl.crt',
+  'ssl_key_file' => __DIR__.'/config/ssl.key',
+));
+```
+
+---
+
+* **注意**
+
+  * 使用 `HTTPS` 服务时，浏览器必须信任所配置的 SSL 证书，否则页面会显示不安全。
+
+  * 使用 `wss`（WebSocket over SSL）时，发起连接的页面也必须通过 `HTTPS` 访问。
+
+  * 浏览器不信任`SSL`证书将无法使用 `wss` 。
+
+  * 文件必须为`PEM`格式，不支持`DER`格式，可使用`openssl`工具进行转换。
+
+  * **`PEM`转`DER`格式**
+
+    ```shell
+    openssl x509 -in cert.crt -outform der -out cert.der
+    ```
+
+  * **`DER`转`PEM`格式**
+
+    ```shell
+    openssl x509 -in cert.crt -inform der -outform pem -out cert.pem
+    ```
+
+!> 该配置需要编译`Swoole`时加入`--enable-openssl`选项，但在`Swoole 6.2.0`已经默认支持`openssl`。
+
+### ssl_compress
+
+- 设置是否启用 `SSL/TLS` 压缩。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_compress' => true
+]);
+```
+
+### ssl_protocols
+
+- 设置OpenSSL隧道加密的协议。默认值：`0`，支持全部协议。
+
+- 支持的协议类型有`SWOOLE_SSL_TLSv1` ,`SWOOLE_SSL_TLSv1`,`SWOOLE_SSL_TLSv1`,`SWOOLE_SSL_TLSv1`,`SWOOLE_SSL_SSL`,`SWOOLE_SSL_SSLv3`。
+
+---
+
+* **示例**
+
+```php
+$server->set(array(
+    'ssl_protocols' => SWOOLE_SSL_TLSv1,
+));
+```
+
+!> Swoole版本 >= `v4.5.4` 可用
+
+### ssl_verify_peer
+
+- 是否验证服务端 SSL 证书的对端证书。默认值：`false`
+
+---
+
+* **示例**
+
+```php
+$server->set(array(
+  'ssl_client_cert_file' => '/path/to/cert_file'
+  'ssl_verify_peer' => true,
+));
+```
+
+!> 默认关闭，即不验证客户端证书。若开启，必须同时设置 `ssl_client_cert_file` 选项
+
+
+### ssl_client_cert_file
+
+- 根证书文件路径，用于验证客户端证书（双向 SSL 认证中的 CA 根证书）。
+
+---
+
+* **示例**
+
+```php
+$server->set(array(
+    'ssl_cert_file'         => __DIR__ . '/config/ssl.crt',
+    'ssl_key_file'          => __DIR__ . '/config/ssl.key',
+    'ssl_verify_peer'       => true,
+    'ssl_allow_self_signed' => true,
+    'ssl_client_cert_file'  => __DIR__ . '/config/ca.crt',
+));
+```
+
+!> `TCP`服务若验证失败，会底层会主动关闭连接。
+
+### ssl_allow_self_signed
+
+- 是否允许自签名证书。默认值：`false`。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_allow_self_signed' => true
+]);
+```
+
+### ssl_cafile
+
+- 当设置 `ssl_verify_peer` 为 `true` 时，用来验证远端证书所用到的 `CA` 证书。本选项值为 `CA` 证书在本地文件系统的全路径及文件名。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_cafile' => '/etc/CA',
+]);
+```
+
+### ssl_capath
+
+- 如果未设置 `ssl_cafile`，或者 `ssl_cafile` 所指的文件不存在时，会在 `ssl_capath` 所指定的目录搜索适用的证书。该目录必须是已经经过哈希处理的证书目录。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_capath' => '/etc/capath/',
+]);
+```
+
+### ssl_verify_depth
+
+- 如果证书链条层次太深，超过了本选项的设定值，则终止验证。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_verify_depth' => 5
+]);
+```
+
+### ssl_prefer_server_ciphers
+
+- 决定当客户端（浏览器）和服务器建立加密连接时，由谁来选择使用哪种加密算法（密码套件）。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_prefer_server_ciphers' => true
+]);
+```
+
+---
+
+* **注意**
+
+  * `true`表示优先使用服务器端配置的加密套件顺序。
+  * `false`优先使用客户端（浏览器）提供的加密套件顺序。
+
+### ssl_ciphers
+
+- 设置 `Openssl` 加密算法，默认值为：`EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH`
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_ciphers' => 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH'
+]);
+```
+
+* **注意**
+
+  * `ssl_ciphers`为空时，由 `openssl` 自行选择加密算法
+
+### ssl_ecdh_curve
+
+- 专门控制 `ECDH` 密钥交换过程中所使用的椭圆曲线。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_ecdh_curve' => 'X25519:prime256v1:secp384r1'
+]);
+```
+
+### ssl_dhparam
+
+- 用于指定 Diffie-Hellman (DH) 密钥交换 所使用的强参数。当服务器使用老式的 DHE 加密套件时，这个指令告诉服务器应该使用哪个“大质数文件”来生成临时的会话密钥，从而保证安全性。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_dhparam' => ‘/etc/dhparam.pem’
+]);
+```
+### ssl_sni_certs
+
+- 设置 SNI (Server Name Identification) 证书。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'ssl_sni_certs' => [
+        'cs.php.net' => [
+            'ssl_cert_file' => __DIR__ . '/sni_server_cs_cert.pem',
+            'ssl_key_file' => __DIR__ . '/sni_server_cs_key.pem',
+        ],
+        'uk.php.net' => [
+            'ssl_cert_file' =>  __DIR__ . '/sni_server_uk_cert.pem',
+            'ssl_key_file' => __DIR__ . '/sni_server_uk_key.pem',
+        ],
+        'us.php.net' => [
+            'ssl_cert_file' => __DIR__ . '/sni_server_us_cert.pem',
+            'ssl_key_file' => __DIR__ . '/sni_server_us_key.pem',
+        ],
+    ]
+]);
+```
+
+
+### websocket_compression
+- 是否启用 `WebSocket` 帧数据的压缩功能。启用后，仍需配合 `SWOOLE_WEBSOCKET_FLAG_COMPRESS` 标志位，对具体的帧单独进行压缩。
+
+---
+
+* **示例1：单帧压缩（自动压缩）。**
+
+- 当 `websocket_compression` 设置为 `true`，并在发送帧时携带 `SWOOLE_WEBSOCKET_FLAG_COMPRESS`，`Swoole` 底层会自动对该帧数据进行 `zlib` 压缩后发送给客户端。
+
+```php
+<?php
+use Swoole\WebSocket\Server;
+use Swoole\WebSocket\Frame;
+
+$server = new Server('127.0.0.1', 9501);
+// 开启 WebSocket 压缩支持
+$server->set(['websocket_compression' => true]);
+
+$server->on('message', function (Server $server, Frame $frame) {
+  // 发送时带上 SWOOLE_WEBSOCKET_FLAG_COMPRESS 标志，底层会自动使用 zlib 压缩该帧数据
+  $server->push(
+      $frame->fd,
+      'Hello Swoole',
+      SWOOLE_WEBSOCKET_OPCODE_TEXT,
+      SWOOLE_WEBSOCKET_FLAG_FIN | SWOOLE_WEBSOCKET_FLAG_COMPRESS
+  );
+});
+
+$server->start();
+```
+
+* **示例2：连续帧压缩（手动压缩）**
+
+- 当 `websocket_compression` 为 `true` 时，如果需要发送多个连续帧（分片消息），底层不会自动压缩，必须由开发者自行压缩数据并设置 `RSV1` 标志。
+
+```php
+<?php
+use Swoole\WebSocket\Server;
+use Swoole\WebSocket\Frame;
+
+$server = new Server('127.0.0.1', 9501);
+// 开启 WebSocket 压缩支持
+$server->set(['websocket_compression' => true]);
+
+$server->on('message', function (Server $server, Frame $frame) {
+  $data1 = bin2hex(random_bytes(10 * 1024));
+  $data2 = bin2hex(random_bytes(20 * 2048));
+  $data3 = bin2hex(random_bytes(40 * 4096));
+  $data4 = bin2hex(random_bytes(40 * 4096));
+  
+  $context = deflate_init(ZLIB_ENCODING_RAW);
+  $server->push($frame->fd, deflate_add($context, $data1, ZLIB_NO_FLUSH), SWOOLE_WEBSOCKET_OPCODE_TEXT, SWOOLE_WEBSOCKET_FLAG_COMPRESS | SWOOLE_WEBSOCKET_FLAG_RSV1);
+  $server->push($frame->fd, deflate_add($context, $data2, ZLIB_NO_FLUSH), SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
+  $server->push($frame->fd, deflate_add($context, $data3, ZLIB_NO_FLUSH), SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, 0);
+  $server->push($frame->fd, deflate_add($context, $data4, ZLIB_FINISH), SWOOLE_WEBSOCKET_OPCODE_CONTINUATION, SWOOLE_WEBSOCKET_FLAG_FIN);
+});
+
+$server->start();
+```
+
+---
+
+* **注意**
+  * 要求服务端与客户端在握手阶段均明确支持压缩；若任一方不支持，则整个通信流程中的消息均不会自动压缩。
+  * `Ping`，`Pong`和关闭帧这三个控制帧不会受到该配置的影响，控制帧不允许压缩。
+  * 有关分片消息的处理机制及详细说明，可以查看[Swoole\WebSocket\Server->push()](/server/methods?id=push)。
+
+
+### websocket_subprotocol
+- 在 `WebSocket` 连接建立时，客户端和服务器协商确定双方都支持的消息格式或应用层协议。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+    'websocket_subprotocol' => 'json',
+]);
+```
+
+---
+
+* **说明**
+  * 设置后握手响应的 HTTP 头会增加 `Sec-WebSocket-Protocol: {$websocket_subprotocol}`。具体使用方法请参考 `WebSocket` 协议相关 `RFC` 文档。
+  
+  * `WebSocket` 只提供了一个"全双工通信的管道"，但不管管道里传输的数据长什么样（是 JSON、是 XML、还是自定义二进制格式）。`Subprotocol` 就是告诉对方："我发的消息是按某某协议组织的，你能理解吗？"。
+
+### open_websocket_ping_frame
+- 该选项用于控制是否由使用者自行处理`websocket`客户端发来的 `Ping` 帧。默认值为 `false`，此时服务器会自动响应一个`Pong` 帧给客户端。
+
+---
+
+* **示例**
+
+```php
+$websocket->set([
+  'open_websocket_ping_frame' => true
+]);
+```
+
+---
+
+* **注意**
+
+  * 设置为`true`后，由客户端发送的`Ping`帧不会由底层自动处理，而是会触发[message事件](/server/events?id=message)，由使用者自行处理。
+
+### open_websocket_pong_frame
+
+- 该选项用于控制是否由使用者自行处理`websocket`客户端发来的 `Pong` 帧。默认值为 `false`。
+
+---
+
+* **示例**
+
+```php
+$websocket->set([
+  'open_websocket_pong_frame' => true
+]);
+```
+
+---
+
+* **注意**
+
+  * 设置为`true`后，由客户端发送的`Pong`帧不会由底层自动处理，而是会触发[message事件](/server/events?id=message)，由使用者自行处理。
+
+### open_websocket_close_frame
+
+- 该选项用于控制是否由使用者自行处理`websocket`客户端发来的 `关闭` 帧。默认值为 `false`。
+
+---
+
+* **示例**
+
+```php
+$websocket->set([
+  'open_websocket_close_frame' => true
+]);
+```
+
+---
+
+* **注意**
+
+  * 设置为`true`后，由客户端发送的`关闭`帧不会由底层自动处理，而是会触发[message事件](/server/events?id=message)，由使用者自行处理。
+
+### http_compression
+
+- 是否开启`HTTP`响应压缩，默认值为：`true`。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'http_compression' => true
+]);
+```
+
+---
+
+* **注意**
+  * 该参数生效的前提是服务器至少支持 `brotli`、`gzip`、`deflate`、`zstd` 中的一种压缩算法。否则，由于缺乏可用的压缩功能，此参数将不会产生任何作用。
+
+### http_compression_level / compression_level / http_gzip_level
+
+- 设置`HTTP`响应压缩等级，范围是 1-9，等级越高压缩后的尺寸越小，但 CPU 消耗更多。默认为 1, 最高为 9。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'http_compression' => true,
+  'http_compression_level' => 6
+]);
+```
+
+### http_compression_min_length / compression_min_length
+
+- 设置`HTTP`响应压缩的最小字节，超过该选项值才开启压缩。默认 20 字节。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'http_compression' => true,
+  'http_compression_level' => 6,
+  'http_compression_min_length' => 4096
+]);
+```
+### http_compression_types / compression_types
+
+- 设置需要压缩的响应类型。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'http_compression_types' => ['text/html', 'application/json']
+]);
+```
+
+!> Swoole 版本 >= v4.8.12 可用
+
+### http_parse_cookie
+
+- 设置底层在解析 `HTTP` 报文时是否启用 `Cookies` 解析，默认值为 `true`。若设置为 `false`，则不会对 `Cookies` 进行解析，原始的 `Cookies` 信息将保留在[Swoole\Http\Request->header](/server/swoole_http_request?id=header) 中。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'http_parse_cookie' => true,
+]);
+```
+
+### http_parse_post
+
+- 设置底层在解析 `HTTP` 报文时是否启用 `POST` 解析，默认值为 `true`。若设置为 `false`，则不会对 `POST` 进行解析。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'http_parse_post' => true,
+]);
+```
+
+---
+
+* **说明**
+  * 设置为 `true` 时自动将 `Content-Type为x-www-form-urlencoded` 的请求包体解析到 [Swoole\Http\Request->post](/server/swoole_http_request?id=post) 中。
+  * 设置为 `false` 是可以通过[Swoole\Http\Request->getContent()](/server/swoole_http_request?id=getcontent)获取请求包体。
+
+### http_parse_files
+
+
+- 设置底层在解析 `HTTP` 报文时是否对用户上传文件进行解析，默认值为 `true`。若设置为 `false`，则不会对用户上传文件进行解析。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'http_parse_files' => true,
+]);
+```
+
+### http2_header_table_size
+
+- 设置 HTTP/2 协议中 HPACK 压缩动态表的最大大小的参数。
+
+---
+
+* **示例**
+
+```php
+$http2->set([
+  'http2_header_table_size' => 0x1
+]);
+```
+
+### http2_enable_push
+- 控制 HTTP/2 服务端是否启用 Server Push（服务端推送）功能的开关。
+
+---
+
+* **示例**
+
+```php
+$http2->set([
+  'http2_enable_push' => 0x2
+]);
+```
+
+### http2_max_concurrent_streams
+- 限制在单个 HTTP/2 连接上同时处于活跃状态的流（Stream）的最大数量。
+
+---
+
+* **示例**
+
+```php
+$http2->set([
+  'http2_max_concurrent_streams' => 256
+]);
+```
+
+
+### http2_init_window_size
+
+- 用于配置 HTTP/2 流量控制中初始窗口大小的参数。
+
+---
+
+* **示例**
+
+```php
+$http2->set([
+  'http2_init_window_size' => '256K'
+]);
+```
+
+### http2_max_frame_size
+- 配置 HTTP/2 协议中单个帧（Frame）最大有效载荷（Payload）大小的参数。
+
+---
+
+* **示例**
+
+```php
+$http2->set([
+  'http2_max_frame_size' => '256K'
+]);
+```
+
+### http2_max_header_list_size
+
+- 配置 HTTP/2 连接中允许接收的最大头部列表大小的参数。
+
+---
+
+* **示例**
+
+```php
+$http2->set([
+  'http2_max_header_list_size' => '32K'
+]);
+```
+
+### document_root
+- 配置静态文件服务器根目录。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'document_root' => '/home/files/'
+  'enable_static_handler' => true
+]);
+```
+
+- 当你访问`http://127.0.0.1:9501/hello.txt`时，如果`/home/files/`存在这份`hello.txt`文件，就会返回这份文件的内容给客户端。
+
+- 当你访问`http://127.0.0.1:9501/hello/hello.txt`时，如果`/home/files/hello/`存在这份`hello.txt`文件，就会返回这份文件的内容给客户端。
+
+---
+
+* **注意**
+
+  * 设置 `document_root` 并设置 `enable_static_handler` 为 `true` 后，底层收到 `Http` 请求会先判断 `document_root` 路径下是否存在此文件，如果存在会直接发送文件内容给客户端，不再触发 [request](/server/events?id=request) 回调。
+  * 使用静态文件处理特性时，应当将动态 `PHP` 代码和静态文件进行隔离，静态文件存放到特定的目录。
+
+!> 这个功能比较简易，只能用于测试，禁止在互联网中使用。
+
+### enable_static_handler
+
+- 启动静态文件服务器。默认为：`false`。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'document_root' => '/home/files/'
+  'enable_static_handler' => true
+]);
+```
+
+!> 这个功能比较简易，只能用于测试，禁止在互联网中使用。
+
+### static_handler_locations
+
+- 设置静态处理器的路径。类型为数组，默认不启用。
+
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'document_root' => '/home/files/'
+  'enable_static_handler' => true,
+  'static_handler_locations' => ['/static', '/app/images'],
+]);
+```
+
+---
+
+* **说明**
+
+  * 类似于 `Nginx` 的 `location` 指令，可以指定一个或多个路径为静态路径。只有 `URL` 在指定路径下才会启用静态文件处理器，否则会视为动态请求。
+  * `location` 项必须以 `/` 开头。
+  * 支持多级路径，如 `/app/images`。
+  * 启用 `static_handler_locations` 后，如果请求对应的文件不存在，将直接返回 404 错误。、
+
+!> 这个功能比较简易，只能用于测试，禁止在互联网中使用。
+
+### url_rewrite_rules
+
+- 静态文件服务器URL重写规则的配置采用数组形式。
+
+- 每个规则包含一个键值对，其中键（key）为正则表达式，用于匹配请求路径；值（value）为目标目录路径。
+
+- 当请求路径与某个键的正则表达式匹配成功时，该请求将被重写至对应的目标目录。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'document_root' => '/home/files/'
+  'enable_static_handler' => true,
+  'url_rewrite_rules' => [
+    '~^/view/post/(\d+)$~' => '/static/$1.html',
+    '/article/' => '/static/article/'
+   ]
+]);
+```
+
+- 当访问 `http://127.0.0.1:9501/view/post/123` 时，该 URL 会匹配正则表达式 `~^/view/post/(\d+)$~`。匹配成功后，系统会在 `/home/files/static/` 目录下查找与捕获的数字（即 `123`）对应的 `123.html` 文件。如果该文件存在，则将其内容返回给客户端。
+
+!> 这个功能比较简易，只能用于测试，禁止在互联网中使用。
+
+### http_autoindex
+- 开启目录浏览功能，默认为：`false`。
+
+- 当访问服务器上的一个目录，且该目录下没有默认的索引文件（如 index.html、index.php）时，服务器会自动生成一个该目录下的文件和子目录列表（目录索引），并以网页形式返回给客户端。类似`Nginx`的`autoindex`指令。
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'document_root' => '/home/files/'
+  'enable_static_handler' => true,
+  'http_autoindex' => true,
+]);
+```
+
+- 当你直接访问`http://127.0.0.1:9501`时，就会返回整个`/home/files/`的文件路径。
+
+![http_autoindex](../images/http_autoindex.png)
+
+!> 这个功能比较简易，只能用于测试，禁止在互联网中使用。
+
+### http_index_files
+
+- 用于指定当客户端访问一个目录时，默认返回该目录下的哪个文件。类似`Nginx`的`index`指令。
+
+
+---
+
+* **示例**
+
+```php
+$http->set([
+  'document_root' => '/home/files/'
+  'enable_static_handler' => true,
+  'http_index_files' => ['index.php'],
+]);
+```
+
+- 访问`http://127.0.0.1:9501/`，如果`/home/files/`存在`index.php`，会将该文件返回给客户端。
+
+!> 这个功能比较简易，只能用于测试，禁止在互联网中使用。
+
+### log_file
+### log_level
+### log_date_format
+### log_date_with_microseconds
+### log_rotation
+
+### open_http_protocol
+- 启用`HTTP`协议报文解析。
+
+### open_websocket_protocol
+- 启用`WebSocket`协议报文解析。
+
+### open_http2_protocol
+- 启用`HTTP2`协议报文解析。
+
+### open_mqtt_protocol
+- 启用`mqtt`协议报文解析。
+
+### open_redis_protocol
+- 启用`redis`协议报文解析。
+
+### debug_mode
+### trace_flags
+### enable_signalfd
+### enable_kqueue
+
+
+
+### display_errors
+### print_backtrace_on_error
+### dns_server
+### socket_dns_timeout
+### socket_connect_timeout
+### socket_write_timeout/socket_send_timeout
+### socket_read_timeout/socket_recv_timeout
+### socket_buffer_size
+### socket_timeout
+
+
+### enable_deadlock_check
+
+### enable_preemptive_scheduler
+### c_stack_size
+### name_resolver
+
+### chroot
+### user
+### group
+### daemonize
+### pid_file
+
+
+### max_queued_bytes
+
+
+### send_timeout
+### dispatch_mode
+### send_yield
+### dispatch_func
+### discard_timeout_request
+### enable_unsafe_event
+### enable_delay_receive
+
+### task_use_object/task_object
+### event_object
+
+### task_ipc_mode
+### task_tmpdir
+
+### task_max_request_grace
+
+### start_session_id
+
+### max_request_grace
+
+### open_cpu_affinity
+### cpu_affinity_ignore
+
+
+
+### upload_tmp_dir
+### input_buffer_size/buffer_input_size
+### output_buffer_size/buffer_output_size
+### message_queue_key
+
+### backlog
+### buffer_high_watermark
+### buffer_low_watermark
+### open_tcp_nodelay
+### tcp_defer_accept
+### open_tcp_keepalive
+### open_eof_check
+### open_eof_split
+### package_eof
+
+### tcp_keepidle
+### tcp_keepinterval
+### tcp_keepcount
+### tcp_user_timeout
+### tcp_fastopen
+
+
+
 
 ### debug_mode
 
@@ -382,38 +2166,7 @@ $server->set([
 
     !> -创建失败时，`Server->start`会失败
 
-### task_enable_coroutine
 
-?> **开启 `Task` 协程支持。**【默认值：`false`】，v4.2.12起支持
-
-?> 开启后自动在[onTask](/server/events?id=ontask)回调中创建协程和[协程容器](/coroutine/scheduler)，`PHP`代码可以直接使用协程`API`。
-
-  * **示例**
-
-```php
-$server->on('Task', function ($serv, Swoole\Server\Task $task) {
-    //来自哪个 Worker 进程
-    $task->worker_id;
-    //任务的编号
-    $task->id;
-    //任务的类型，taskwait, task, taskCo, taskWaitMulti 可能使用不同的 flags
-    $task->flags;
-    //任务的数据
-    $task->data;
-    //投递时间，v4.6.0版本增加
-    $task->dispatch_time;
-    //协程 API
-    co::sleep(0.2);
-    //完成任务，结束并返回数据
-    $task->finish([123, 'hello']);
-});
-```
-
-  * **注意**
-
-    !> -`task_enable_coroutine`必须在[enable_coroutine](/server/setting?id=enable_coroutine)为`true`时才可以使用  
-    -开启`task_enable_coroutine`，`Task`工作进程支持协程  
-    -未开启`task_enable_coroutine`，仅支持同步阻塞
 
 ### task_use_object/task_object :id=task_use_object
 

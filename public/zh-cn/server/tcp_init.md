@@ -1,6 +1,6 @@
 # TCP/UDP 服务器
 
-你可以通过实例化 `Swoole\Server` 对象来创建 TCP 或 UDP 服务器。`Swoole\Server` 是所有异步风格服务器的基类，后续章节介绍的 `Swoole\Http\Server`、`Swoole\WebSocket\Server`、`Swoole\Redis\Server` 等类都继承自它。
+- 你可以通过实例化 `Swoole\Server` 对象来创建 TCP 或 UDP 服务器。`Swoole\Server` 是所有异步风格服务器的基类，后续章节介绍的 `Swoole\Http\Server`、`Swoole\WebSocket\Server`、`Swoole\Redis\Server` 等类都继承自它。
 
 #### 示例
 

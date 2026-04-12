@@ -1,4 +1,4 @@
-# 回调事件
+# 事件回调
 
 从 [TCP/UDP 服务器](/server/tcp_init)、[HTTP/HTTPS/HTTP2 服务器](/http_server) 和 [WebSocket 服务器](/websocket_server) 章节中，可以看到一些结构相似的代码示例：
 
@@ -8,7 +8,7 @@ $server->on('receive', function (Server $server, int $fd, int $reactorId, string
 });
 ```
 
-这类通过 [Swoole\Server->on()](/server/methods?id=on) 方法注册的，就是**回调事件**。回调事件在整个异步服务器模型中扮演着核心角色。通过它们，可以定义当客户端发送数据、进程启动或退出、甚至客户端连接建立或关闭时，服务器应该执行哪些逻辑。
+这类通过 [Swoole\Server->on()](/server/methods?id=on) 方法注册的，就是**事件回调**。事件回调在整个异步服务器模型中扮演着核心角色。通过它们，可以定义当客户端发送数据、进程启动或退出、甚至客户端连接建立或关闭时，服务器应该执行哪些逻辑。
 
 以上面的代码为例，可以简单地理解为，**一旦客户端发送数据过来，服务器就会自动触发 receive 事件，并执行与之绑定的函数——也就是向客户端回复一句 Hello World**。 
 

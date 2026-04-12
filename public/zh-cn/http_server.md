@@ -1,8 +1,10 @@
 # HTTP/HTTPS/HTTP2服务器
 
-要创建一个 `HTTP`、`HTTPS` 或 `HTTP2` 服务器，只需实例化 `Swoole\Http\Server` 对象即可。这也是 `Swoole` 全系列服务器中使用最广泛的一种。
+- 要创建一个 `HTTP`、`HTTPS` 或 `HTTP2` 服务器，只需实例化 `Swoole\Http\Server` 对象即可。这也是 `Swoole` 全系列服务器中使用最广泛的一种。
 
-`Swoole\Http\Server`、`Swoole\Http\Request` 和 `Swoole\Http\Response` 三者共同构成了一个完整的 HTTP 服务器。其中，[Request对象](/server/swoole_http_requqest)封装了客户端的请求信息，[Response对象](/server/swoole_http_response)则用于向客户端返回响应。以下示例展示了它们的简单用法。
+- `Swoole\Http\Server`、`Swoole\Http\Request` 和 `Swoole\Http\Response` 三者共同构成了一个完整的 HTTP 服务器。其中，[Request对象](/server/swoole_http_requqest)封装了客户端的请求信息，[Response对象](/server/swoole_http_response)则用于向客户端返回响应。以下示例展示了它们的简单用法。
+
+> `Swoole\Http\Server` 是 `Swoole\Server` 的子类。
 
 #### 示例
 
