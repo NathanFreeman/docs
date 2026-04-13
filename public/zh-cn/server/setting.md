@@ -438,6 +438,63 @@ $server->set([
   
   * `open_http_protocol`：`GET`请求最大允许`8K`，而且无法修改配置。`POST`请求会检测`Content-Length`，如果`Content-Length`超过`package_max_length`，将直接丢弃此数据，发送`http 400`错误，并关闭连接。
 
+### open_eof_check 
+- 此选项用于检测客户端发来的数据：仅当`数据包结尾`匹配指定分隔符`（如 \r\n）`时，底层才会停止接收数据；否则，数据将被持续拼接，直到超出缓存区限制或接收超时才会中止。
+
+- 若检测过程发生错误，底层会将其视为恶意连接，直接丢弃数据并强制关闭连接。参考 [TCP 数据包边界问题](/learn?id=tcp数据包边界问题)。
+
+- 性能极高，几乎无额外开销。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'open_eof_check' => true,
+  'package_eof' => '\r\n'
+]);
+```
+
+!> 此配置仅适用于 **STREAM 类型** 的 Socket（例如 TCP、Unix Socket Stream）。对于指定分隔符检测，系统**不会**在数据流中间查找指定分隔符，因此[worker进程](/process_thread?id=worker)可能会一次性收到多个数据包。你需要在应用层代码中自行拆分数据包，例如使用 `explode("\r\n", $data)` 进行分包处理。
+
+### open_eof_split
+- 底层逐字节扫描数据流，每次遇到指定分隔符`（如 \r\n）`就自动切分并交付一个完整数据包给[worker进程](/process_thread?id=worker)。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'open_eof_split' => true,
+  'package_eof' => '\r\n'
+]);
+```
+
+---
+
+* **注意**
+  * 启用 `open_eof_split` 后，底层会在数据流中查找指定分隔符并自动拆分数据包，确保 [receive回调](/server/events?id=receive) 每次都只收到一个以该分隔符结尾的完整数据包。
+  * `open_eof_check` 仅检查数据包末尾是否包含指定分隔符，性能极佳、几乎无额外开销，但无法解决多包合并问题：当客户端连续发送多个带 EOF 的数据包时，底层可能一次性全部返回，需要业务层自行拆包。
+  * `open_eof_split`采用从左到右的逐字节扫描方式查找指定分隔符来拆分数据包，性能较差，且每次仅返回一个数据包。
+  * `open_eof_split`优先级大于`open_eof_check`。
+
+### package_eof
+- 设置数据包指定分隔符。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'open_eof_split' => true,
+  'package_eof' => '\r\n'
+]);
+```
+
+!> `package_eof` 最大只允许传入 `8` 个字节的字符串。
 
 ### open_length_check
 - 启用数据包长度检测协议解析功能。默认值为：`false`。参考 [TCP 数据包边界问题](/learn?id=tcp数据包边界问题)。
@@ -472,10 +529,7 @@ $server->set([
 
 ---
 
-* **注意**
-  * 
-
-- 目前 Swoole 支持 10 种长度字段类型：
+* **注意，目前 Swoole 支持 10 种长度字段类型：**
 
 | 字符参数 | 作用                 |
 |------|--------------------|
@@ -1709,40 +1763,209 @@ $http->set([
 ### open_redis_protocol
 - 启用`redis`协议报文解析。
 
+### socket_dns_timeout
+- 控制域名解析超时时间，单位为秒。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'socket_dns_timeout' => 10
+]);
+```
+### socket_connect_timeout
+- 控制 TCP 连接建立阶段的超时时间。它指的是客户端从发起 connect() 系统调用开始，到成功与服务器建立 TCP 三次握手连接为止的最大等待时间。单位为秒。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'socket_connect_timeout' => 10
+]);
+```
+
+### socket_timeout
+- 
+### socket_write_timeout / socket_send_timeout
+- 控制客户端向服务器发送数据的最大允许时间。单位为秒。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'socket_write_timeout' => 10
+]);
+```
+
+### socket_read_timeout / socket_recv_timeout
+- 控制的是客户端等待接收数据的最大允许时间。它监控的是从发送完请求后，到完全接收完响应数据之间的整个过程。单位为秒。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'socket_read_timeout' => 10
+]);
+```
+
+### socket_buffer_size
+- 配置进程间通信的缓存区长度。默认值：2M。
+
+- 用于设置 [worker进程](/server/process_thread?id=worker) 和 [master进程](/server/process_thread?id=master) 进程间通讯 buffer 总的大小，参考 [SWOOLE_PROCESS模式](/server/process_thread?id=SWOOLE_PROCESS) 。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'socket_buffer_size' => 128 * 1024 *1024
+]);
+```
+
+### open_tcp_nodelay
+- 关闭 `Nagle` 算法，让小数据包能立刻被发送出去，而不是等待合并。默认值：`false`。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'open_tcp_nodelay' => false
+]);
+```
+
+### open_tcp_keepalive
+- 开启 TCP 的 KeepAlive 机制，让操作系统内核自动检测连接是否仍然有效，并自动清理已失效的连接。默认值：`false`。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'open_tcp_keepalive' => false
+]);
+```
+
+* **注意**
+  * 需要配合`tcp_keepidle`，`tcp_keepinterval`和`tcp_keepcount`一起使用，
+
+### tcp_keepidle
+- TCP 连接在空闲多长时间后，系统内核才开始发送第一个 `KeepAlive` 探测包，检测这个连接是否还活着。单位为秒。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'tcp_keepidle' => 5
+]);
+```
+
+### tcp_keepinterval
+- TCP KeepAlive 探测包的发送间隔。它决定了在第一次探测没有收到响应后，每隔多久重新发送一次探测包。单位为秒。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'tcp_keepinterval' => 5
+]);
+```
+
+### tcp_keepcount
+- TCP KeepAlive 探测失败后，关闭连接前的最大重试次数。它决定了在收到探测包的响应之前，系统愿意尝试多少次。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'tcp_keepinterval' => 100
+]);
+```
+
+### tcp_defer_accept
+
+- `tcp_defer_accept` 参数用于控制服务器在新建 TCP 连接时，是否延迟分配套接字和应用层资源。默认值为 `0`，表示采用标准行为：三次握手完成后，服务器立即分配资源并唤醒应用程序处理。
+
+- 标准行为存在一个效率问题：若客户端建立连接后长时间不发送数据，服务器仍需维持该连接、占用资源，这就是“全连接攻击”的典型场景。
+
+- 当设置了 `tcp_defer_accept`（单位：秒）后，服务器仅在收到客户端实际数据时才会分配完整资源。如果超过该时间仍未收到任何数据，连接将被主动丢弃，从而避免资源空耗。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'tcp_defer_accept' => 5
+]);
+```
+
+### tcp_user_timeout
+
+- 当发送方发送数据后，如果迟迟收不到对方的 `ACK` 确认，TCP 会按指数退避算法重传数据。
+
+- 累计重传时间一旦超过`tcp_user_timeout`的值，连接会被关闭。默认值为：0。单位为毫秒。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'tcp_user_timeout' => 5000 // 5秒
+]);
+```
+
+!> Swoole 版本 >= `v4.5.3-alpha` 可用。
+
+### tcp_fastopen
+
+- 开启 TCP 快速握手特性，它允许在三次握手过程中就携带应用数据，从而减少一个 RTT（往返时间）的延迟。默认值为：`false`。
+
+---
+
+* **示例**
+
+```php
+$server->set([
+  'tcp_fastopen' => true
+]);
+```
+
 ### debug_mode
 ### trace_flags
 ### enable_signalfd
 ### enable_kqueue
-
-
-
 ### display_errors
 ### print_backtrace_on_error
 ### dns_server
-### socket_dns_timeout
-### socket_connect_timeout
-### socket_write_timeout/socket_send_timeout
-### socket_read_timeout/socket_recv_timeout
-### socket_buffer_size
-### socket_timeout
-
-
 ### enable_deadlock_check
-
 ### enable_preemptive_scheduler
 ### c_stack_size
 ### name_resolver
-
 ### chroot
 ### user
 ### group
 ### daemonize
 ### pid_file
-
-
 ### max_queued_bytes
-
-
 ### send_timeout
 ### dispatch_mode
 ### send_yield
@@ -1750,44 +1973,23 @@ $http->set([
 ### discard_timeout_request
 ### enable_unsafe_event
 ### enable_delay_receive
-
 ### task_use_object/task_object
 ### event_object
-
 ### task_ipc_mode
 ### task_tmpdir
-
 ### task_max_request_grace
-
 ### start_session_id
-
 ### max_request_grace
-
 ### open_cpu_affinity
 ### cpu_affinity_ignore
-
-
-
 ### upload_tmp_dir
 ### input_buffer_size/buffer_input_size
 ### output_buffer_size/buffer_output_size
 ### message_queue_key
-
 ### backlog
 ### buffer_high_watermark
 ### buffer_low_watermark
-### open_tcp_nodelay
-### tcp_defer_accept
-### open_tcp_keepalive
-### open_eof_check
-### open_eof_split
-### package_eof
 
-### tcp_keepidle
-### tcp_keepinterval
-### tcp_keepcount
-### tcp_user_timeout
-### tcp_fastopen
 
 
 
