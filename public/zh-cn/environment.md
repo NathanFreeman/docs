@@ -140,27 +140,27 @@ PECL/PIE 或源码安装执行 `./configure` 时，可添加以下参数以开�
 
 #### 通用功能选项
 
-| 参数                         | 说明                                              | 备注                                                                                        |
-|:---------------------------|:------------------------------------------------|:------------------------------------------------------------------------------------------|
-| `--enable-openssl`         | 启用 SSL/TLS 支持。                                  | Swoole 6.2 版本后该选项已被废弃，默认启用 SSL/TLS 支持。                                                    |
-| `--with-openssl-dir`       | 指定 OpenSSL 库路径。                                 | Swoole 6.2 版本后仅用于修改默认路径。                                                                  |
-| `--enable-http2`           | 开启 HTTP2 协议支持。                                  | Swoole 5 起默认启用。                                                                           |
-| `--enable-swoole-json`     | 启用 `swoole_substr_json_decode` 函数。              | Swoole 5 起默认启用。                                                                           |
-| `--enable-swoole-curl`     | 启用对原生 `curl` 的协程化支持（`SWOOLE_HOOK_NATIVE_CURL`）。 | 要求 PHP 与 Swoole 使用相同的 `libcurl`和安装`php curl`扩展。                                           |
-| `--enable-cares`           | 启用 `c-ares` 异步 DNS 解析支持。                        | 依赖 `c-ares` 库。                                                                            |
-| `--enable-brotli`          | 启用 Brotli 压缩算法支持。                               | 依赖`libbrotli`库。                                                                           |
-| `--with-brotli-dir`        | 指定 Brotli 库路径。                                  | 依赖`libbrotli`库。                                                                           |
-| `--enable-swoole-pgsql`    | 启用 PostgreSQL 数据库的协程化支持。                        | 依赖 `libpq` 库。                                                                             |
-| `--with-swoole-odbc`       | 启用 `pdo_odbc` 的协程化支持。                           | 依赖 `unixodbc-dev`。示例：`--with-swoole-odbc="unixODBC,/usr"`                                 |
-| `--with-swoole-oracle`     | 启用 `pdo_oci` 的协程化支持，用于 Oracle 数据库。              | 依赖 `oracle-client-sdk` 库。示例：`--with-swoole-oracle=instantclient,/usr/local/instantclient` |
-| `--enable-swoole-sqlite`   | 启用 `pdo_sqlite` 的协程化支持。                         | 依赖`sqlite3` `libsqlite3-dev`库。                                                            |
-| `--enable-swoole-thread`   | 开启多线程模式，将进程模型变为单进程多线程。                          | 要求 PHP 为 ZTS 版本，Swoole 6.0+。                                                              |
-| `--enable-iouring`         | 使用 `io_uring` 替代线程池处理文件异步 I/O。                  | 需高版本 Linux 内核及 `liburing` 库，Swoole 6.0+。                                                  |
-| `--enable-iouring-dir`     | 指定 `liburing` 库路径。                              | 需高版本 Linux 内核及 `liburing` 库，Swoole 6.0+。                                                  |
-| `--enable-uring-socket`    | 使用 `io_uring` 替代 `epoll/kqueue` 处理 Socket I/O。  | 依赖 `--enable-iouring`，Swoole 6.2+。                                                        |
-| `--enable-zstd`            | 启用 Zstandard 压缩算法支持。                            | 依赖 `libzstd` 库，Swoole 6.0+。                                                               |
-| `--with-swoole-ssh2`       | 启用 ssh2 的协程化支持。                                 | Swoole 6.2+ 可用。                                                                           |
-| `--enable-swoole-ftp`      | 启用 ftp 的协程化支持。                            | Swoole 6.2+ 可用。                                                                           |
+| 参数                         | 说明                                              | 备注                                                                                              |
+|:---------------------------|:------------------------------------------------|:------------------------------------------------------------------------------------------------|
+| `--enable-openssl`         | 启用 SSL/TLS 支持。                                  | Swoole 6.2 版本后该选项已被废弃，默认启用 SSL/TLS 支持。                                                          |
+| `--with-openssl-dir`       | 指定 OpenSSL 库路径。                                 | Swoole 6.2 版本后仅用于修改默认路径。                                                                        |
+| `--enable-http2`           | 开启 HTTP2 协议支持。                                  | Swoole 5 起默认启用。                                                                                 |
+| `--enable-swoole-json`     | 启用 `swoole_substr_json_decode` 函数。              | Swoole 5 起默认启用。                                                                                 |
+| `--enable-swoole-curl`     | 启用对原生 `curl` 的协程化支持（`SWOOLE_HOOK_NATIVE_CURL`）。 | 要求 PHP 与 Swoole 使用相同的 `libcurl`和安装`php curl`扩展。                                                 |
+| `--enable-cares`           | 启用 `c-ares` 异步 DNS 解析支持。                        | 依赖 `c-ares` 库。                                                                                  |
+| `--enable-brotli`          | 启用 Brotli 压缩算法支持。                               | 依赖`libbrotli`库。                                                                                 |
+| `--with-brotli-dir`        | 指定 Brotli 库路径。                                  | 依赖`libbrotli`库。                                                                                 |
+| `--enable-swoole-pgsql`    | 启用 PostgreSQL 数据库的协程化支持。                        | 依赖 `libpq` 库。                                                                                   |
+| `--with-swoole-odbc`       | 启用 `pdo_odbc` 的协程化支持。                           | 依赖 `unixodbc-dev`。示例：`--with-swoole-odbc="unixODBC,/usr"`                                       |
+| `--with-swoole-oracle`     | 启用 `pdo_oci` 的协程化支持，用于 Oracle 数据库。              | 依赖 `oracle-client-sdk` 库。示例：`--with-swoole-oracle=instantclient,/usr/local/instantclient`       |
+| `--enable-swoole-sqlite`   | 启用 `pdo_sqlite` 的协程化支持。                         | 依赖`sqlite3` `libsqlite3-dev`库。                                                                  |
+| `--enable-swoole-thread`   | 开启多线程模式，将进程模型变为单进程多线程。                          | 要求 PHP 为 ZTS 版本，Swoole 6.0+。                                                                    |
+| `--enable-iouring`         | 使用 `io_uring` 替代线程池处理文件异步 I/O。                  | 需高版本 Linux 内核及 `liburing >= 2.8` 库 ，Swoole 6.0+。                                                |
+| `--enable-iouring-dir`     | 指定 `liburing` 库路径。                              | 需高版本 Linux 内核及 `liburing >= 2.8` 库，Swoole 6.0+。                                                        |
+| `--enable-uring-socket`    | 使用 `io_uring` 替代 `epoll/kqueue` 处理 Socket I/O。  | 依赖 `--enable-iouring`，Swoole 6.2+。                                                              |
+| `--enable-zstd`            | 启用 Zstandard 压缩算法支持。                            | 依赖 `libzstd` 库，Swoole 6.0+。                                                                     |
+| `--with-swoole-ssh2`       | 启用 ssh2 的协程化支持。                                 | Swoole 6.2+ 可用。                                                                                 |
+| `--enable-swoole-ftp`      | 启用 ftp 的协程化支持。                            | Swoole 6.2+ 可用。                                                                                 |
 
 #### 特殊与调试选项
 
@@ -173,12 +173,6 @@ PECL/PIE 或源码安装执行 `./configure` 时，可添加以下参数以开�
 | `--enable-trace-log` | 开启追踪日志，打印详细调试信息。 | **仅供内核开发使用** |
 | `--enable-swoole-coro-time` | 启用协程运行时间计算。 | |
 
-
-这段内容主要介绍了 Swoole 在特殊硬件平台（ARM/MIPS）、Windows 子系统（WSL）以及容器化环境（Docker）下的编译与配置注意事项。
-
-针对你提供的 Markdown 内容，我进行了结构化优化，使其层级更清晰，重点更突出，并修复了链接格式。
-
-以下是优化后的版本：
 
 ### 特殊平台与环境编译指南
 

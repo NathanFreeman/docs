@@ -695,11 +695,11 @@ $server->start();
 
 !> 禁止在`task`事件中使用`Swoole\Server->task()`，底层会检查环境并且抛出`Server->task() cannot use in the task-worker`。
 
-! 若未显式指定目标`task`进程，底层会通过取模方式从所有`task`进程中选择一个进行任务投递。不管该进程是否空闲。
+!> 若未显式指定目标`task`进程，底层会通过取模方式从所有`task`进程中选择一个进行任务投递。不管该进程是否空闲。
 
-! `task`进程接收到任务，会将自身状态设置为忙碌，这时将不再接收新的Task，如果所有的`task`进程全部忙碌，投递任务时会提示`No idle task worker is available`，需要等待目标`task`进程空闲下来。
+!> `task`进程接收到任务，会将自身状态设置为忙碌，这时将不再接收新的Task，如果所有的`task`进程全部忙碌，投递任务时会提示`No idle task worker is available`，需要等待目标`task`进程空闲下来。
 
-! 执行时遇到致命错误退出，或者被外部进程强制`kill`，当前的任务会被丢弃，但不会影响其他正在排队的任务。
+!> 执行时遇到致命错误退出，或者被外部进程强制`kill`，当前的任务会被丢弃，但不会影响其他正在排队的任务。
 
 ## finish
 - 此触发函数在worker进程被调用，当[worker进程](/server/process_thread?id=worker)投递的任务在[task进程](/server/process_thread?id=task)中完成时， task进程会通过`Swoole\Server->finish()`函数或者`return`操作将任务处理的结果发送给`worker`进程。
